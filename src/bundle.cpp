@@ -52,7 +52,7 @@ bool Bundle::Write(const std::string& name)
 	return false;
 }
 
-uint8_t* Bundle::GetBinary(const std::string& entry, uint32_t& size)
+uint8_t* Bundle::GetBinary(const std::string& entry, size_t& size)
 {
 	size = 0;
 	std::string Name = entry;
@@ -107,7 +107,7 @@ void Bundle::AddEntry(const std::string & entry, const std::string & text, bool 
 {
 }
 
-void Bundle::AddEntry(const std::string & entry, const uint8_t * data, uint32_t size, bool overwrite)
+void Bundle::AddEntry(const std::string & entry, const uint8_t * data, size_t size, bool overwrite)
 {
 }
 

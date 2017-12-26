@@ -68,10 +68,10 @@ void Editor::treeChanged(const QItemSelection &selected, const QItemSelection &d
 		else if(extension=="jpg"||extension=="tga"||extension=="dds"||extension=="png")
 		{
 			m_content->setCurrentWidget(m_imageviewer);
-			uint32_t size = 0;
-			uint8_t* content = m_archive.GetBinary(entry.toStdString(),size);
+			size_t size = 0;
+			uint8_t* content = m_archive.GetBinary(entry.toStdString(), size);
 			QPixmap pixmap;
-			bool result = pixmap.loadFromData(content,size);
+			bool result = pixmap.loadFromData(content, (uint)size);
 			m_imageviewer->setPixmap(pixmap);
 		}
 	}
