@@ -1,5 +1,5 @@
-set(HEADER_DIR ${LIBBIG_ROOT}/include/libbig)
-set(PUBLIC_HEADERS  ${HEADER_DIR}/big.hpp)
+set(HEADER_DIR ${LIBBNDL_ROOT}/include/libbndl)
+set(PUBLIC_HEADERS  ${HEADER_DIR}/bundle.hpp)
 
 file(GLOB_RECURSE SRC_FILES
 	"*.c"
@@ -8,9 +8,9 @@ file(GLOB_RECURSE SRC_FILES
     "*.cpp"
 )
 
-add_library(libbig STATIC   ${SRC_FILES}
+add_library(libbndl STATIC   ${SRC_FILES}
 							${PUBLIC_HEADERS})
 
-set_property(TARGET libbig PROPERTY CXX_STANDARD 14)
-set_property(TARGET libbig PROPERTY PREFIX "")
-target_include_directories(libbig PUBLIC ${LIBBIG_ROOT}/include)
+set_property(TARGET libbndl PROPERTY CXX_STANDARD 14)
+set_property(TARGET libbndl PROPERTY PREFIX "")
+target_include_directories(libbndl PUBLIC ${LIBBNDL_ROOT}/include)

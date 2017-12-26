@@ -1,2 +1,2 @@
-add_subdirectory(big_util)
-add_subdirectory(big_edit)
+add_subdirectory(bndl_util)
+add_subdirectory(bndl_edit)

@@ -1,7 +1,7 @@
 #pragma once
 #include <fstream>
 #include <stdint.h>
-namespace libbig
+namespace libbndl
 {
     inline uint32_t reverse(uint32_t v)
     {
