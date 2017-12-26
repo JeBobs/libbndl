@@ -33,7 +33,7 @@ bool Bundle::Load(const std::string& name)
 	uint32_t first = reverse(read<uint32_t>(m_stream));
 
 	m_entries.clear();
-	for (auto i = 0; i < m_numEntries; i++)
+	for (auto i = 0U; i < m_numEntries; i++)
 	{
 		Entry e;
 		e.Offset = reverse(read<uint32_t>(m_stream));
