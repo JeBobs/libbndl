@@ -8,10 +8,10 @@ using namespace libbndl;
 int main(int argc, char** argv)
 {
 	//option parsing
-	cxxopts::Options options("BNDL util", "A program to work with Burnout Paradise BNDL archives");
+	cxxopts::Options options("bndl_util", "A program to work with Burnout Paradise BUNDLE archives.");
 	options.add_options()
-		("e,extract", "Extract the arcchive")
-		("p,pack", "Pack a folder structure to a big archive")
+		("e,extract", "Extract the archive")
+		("p,pack", "Pack a folder structure to a BUNDLE archive")
 		("f,file", "Name of the archive that should be extracted/generated", cxxopts::value<std::string>())
 		("s,search","Search for an entry", cxxopts::value<std::string>())
 		("l,list","List all entries");
@@ -47,12 +47,12 @@ int main(int argc, char** argv)
 		if(list)
 		{
 			std::cout.fill('-');
-			std::cout << "NAME" << std::setw(70) << "SIZE" << std::endl;
+			std::cout << "NAME" << std::setw(70) << "FILE TYPE" << std::endl;
 			std::cout.fill(' ');
 			for (const auto& e : arch.ListEntries())
 			{
 				Bundle::Entry info = arch.GetInfo(e);
-				std::cout<< std::left << std::setw(70) << e << std::right << " " << info.Size << std::endl;
+				std::cout<< std::left << std::setw(70) << std::hex << e << std::right << " " << info.fileType << std::dec << std::endl;
 			}
 		}
 	}

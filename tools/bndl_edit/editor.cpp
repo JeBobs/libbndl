@@ -6,6 +6,7 @@
 #include <QContextMenuEvent>
 #include <QSplitter>
 #include <QPixmap>
+#include <QMessageBox>
 
 Editor::Editor(QWidget* parent)
 {
@@ -47,7 +48,7 @@ Editor::Editor(QWidget* parent)
 	QString message = tr("A context menu is available by right-clicking");
 	statusBar()->showMessage(message);
 
-	setMinimumSize(300, 200);
+	setMinimumSize(900, 600);
 
 }
 
@@ -59,7 +60,7 @@ void Editor::treeChanged(const QItemSelection &selected, const QItemSelection &d
 		QVariant data = indices.front().data();
 		QString entry = data.toString();
 		QString extension = entry.split('.').back();
-		if(extension=="ini"||extension=="inc"||extension=="txt")
+		/*if(extension=="ini"||extension=="inc"||extension=="txt")
 		{
 			m_content->setCurrentWidget(m_texteditor);
 			std::string content = m_archive.GetText(entry.toStdString());
@@ -73,7 +74,7 @@ void Editor::treeChanged(const QItemSelection &selected, const QItemSelection &d
 			QPixmap pixmap;
 			bool result = pixmap.loadFromData(content, (uint)size);
 			m_imageviewer->setPixmap(pixmap);
-		}
+		}*/
 	}
 	
 }
@@ -99,7 +100,7 @@ void Editor::PopulateTree()
 	QStandardItem *item = m_model->invisibleRootItem();
 	for(const auto& entry : m_archive.ListEntries())
 	{
-		QString name(entry.c_str());
+		auto name = QString::number(entry, 16);
 		QStandardItem* child = new QStandardItem(name);
 		child->setData(QVariant(name));
 		item->appendRow(child);
@@ -188,19 +189,24 @@ void Editor::newFile()
 void Editor::open()
 {
 	auto fileName = QFileDialog::getOpenFileName(this,
-    tr("Open Archive"), "", tr("Big Files (*.big)"));
+    tr("Open Archive"), "", tr("BUNDLE Files (*.BNDL, *.BUNDLE)"));
 	
-	if(m_archive.Load(fileName.toStdString()))
+	if (m_archive.Load(fileName.toStdString()))
 	{
 		m_path = fileName;
 		PopulateTree();
+	}
+	else
+	{
+		QMessageBox messageBox;
+		messageBox.critical(0, "Error", "Could not load the bundle.");
 	}
 }
 
 void Editor::save()
 {
 	auto fileName = QFileDialog::getSaveFileName(this,
-    tr("Save Archive"), "", tr("Big Files (*.big)"));
+    tr("Save Archive"), "", tr("BUNDLE Files (*.BNDL, *.BUNDLE)"));
 }
 
 void Editor::saveAs()
