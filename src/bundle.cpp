@@ -108,17 +108,17 @@ bool Bundle::Write(const std::string& name)
 }
 
 // TODO: Check whether this actually works with big endian bundle.
-Bundle::EntryData Bundle::GetBinary(uint32_t fileID)
+Bundle::EntryData* Bundle::GetBinary(uint32_t fileID)
 {
 	auto it = m_entries.find(fileID);
 	if (it == m_entries.end())
-		return EntryData();
+		return nullptr;
 
 	Lock mutexLock(m_mutex);
 
 	Entry e = it->second;
 
-	EntryData data;
+	auto data = new EntryData;
 	for (auto i = 0; i < 3; i++)
 	{
 		EntryDataInfo dataInfo = e.fileBlockDataInfo[i];
@@ -126,8 +126,8 @@ Bundle::EntryData Bundle::GetBinary(uint32_t fileID)
 		size_t readSize = m_compressed ? dataInfo.compressedSize : dataInfo.uncompressedSize;
 		if (readSize == 0)
 		{
-			data.fileBlockData[i].data = NULL;
-			data.fileBlockData[i].size = 0;
+			data->fileBlockData[i].data = NULL;
+			data->fileBlockData[i].size = 0;
 			continue;
 		}
 
@@ -148,8 +148,8 @@ Bundle::EntryData Bundle::GetBinary(uint32_t fileID)
 			buffer = uncompressedBuffer;
 		}
 
-		data.fileBlockData[i].data = buffer;
-		data.fileBlockData[i].size = dataInfo.uncompressedSize;
+		data->fileBlockData[i].data = buffer;
+		data->fileBlockData[i].size = dataInfo.uncompressedSize;
 	}
 
 	return data;

@@ -153,7 +153,7 @@ namespace libbndl
 		//get entry info
 		Entry GetInfo(uint32_t fileID);
 		//get entry binary
-		EntryData GetBinary(uint32_t fileID);
+		EntryData* GetBinary(uint32_t fileID);
 		//get entry as string
 		//std::string GetText(uint32_t fileID);
 		//get entry stream
