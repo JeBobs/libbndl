@@ -1,7 +1,7 @@
 # Cpp language
 language: cpp
 sudo: required
-dist: trusty
+dist: xenial
 
 # Compiler selection
 compiler:
@@ -13,16 +13,11 @@ cache:
 # Build matrix
 addons:
   apt:
-    sources: 
-        - george-edison55-precise-backports
-        - ubuntu-toolchain-r-test
-        - llvm-toolchain-precise-3.8
     packages:
         - clang-3.8
         - g++-5
         - gcc-5
         - cmake
-        - cmake-data
         - libpthread-stubs0-dev
         - qt5-default
         - libqt5opengl5-dev
