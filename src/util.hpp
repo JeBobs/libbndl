@@ -40,7 +40,7 @@ namespace libbndl
 			(v >> 56);
 	}
 
-    template <typename T, typename = typename std::enable_if<std::is_unsigned<safe_underlying_type<T>::type>::value>::type>
+    template <typename T, typename = typename std::enable_if<std::is_unsigned<typename safe_underlying_type<T>::type>::value>::type>
 	inline T read(std::fstream& stream, bool reverse = false)
 	{
 		T result;
