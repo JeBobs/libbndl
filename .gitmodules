@@ -5,3 +5,4 @@
 	path = deps/zlib
 	url = https://github.com/madler/zlib
 	branch = master
+	ignore = dirty
