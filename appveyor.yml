@@ -4,9 +4,9 @@ image: Visual Studio 2017
 
 environment:
   matrix:
-  - CMAKE_GENERATOR: "Visual Studio 15 2017"
+  - ARCHITECTURE: "x86"
     QT5_DIR: C:\Qt\5.9\msvc2015 # There's no msvc2017
-  - CMAKE_GENERATOR: "Visual Studio 15 2017 Win64"
+  - ARCHITECTURE: "x64"
     QT5_DIR: C:\Qt\5.9\msvc2017_64
 
 matrix:
@@ -14,12 +14,12 @@ matrix:
 
 install:
 - call "%QT5_DIR%\bin\qtenv2.bat"
-- call "C:\\Program Files (x86)\\Microsoft Visual Studio\\2017\\Community\\VC\\Auxiliary\\Build\\vcvars64.bat"
+- call "C:\\Program Files (x86)\\Microsoft Visual Studio\\2017\\Community\\VC\\Auxiliary\\Build\\vcvarsall.bat" %ARCHITECTURE%
 - cd /D "%APPVEYOR_BUILD_FOLDER%"
 - git submodule update --init --recursive
 
 before_build:
-- cmake -H. -Bbuild -G "%CMAKE_GENERATOR%" -DCMAKE_PREFIX_PATH="%QT5_DIR%" -DCMAKE_BUILD_TYPE="RelWithDebInfo" -DCMAKE_MAKE_PROGRAM="C:\\Program Files (x86)\\Microsoft Visual Studio\\2017\\Community\\Common7\\IDE\\CommonExtensions\\Microsoft\\CMake\\Ninja\\ninja.exe"
+- cmake -H. -Bbuild -G Ninja -DCMAKE_PREFIX_PATH="%QT5_DIR%" -DCMAKE_BUILD_TYPE=Release -DCMAKE_MAKE_PROGRAM="C:\\Program Files (x86)\\Microsoft Visual Studio\\2017\\Community\\Common7\\IDE\\CommonExtensions\\Microsoft\\CMake\\Ninja\\ninja.exe"
 
 build_script:
 - cmake --build build
