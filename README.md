@@ -29,7 +29,7 @@ int main(int argc,char** argv)
     // Load an entry from the archive
     EntryData *entry = arch.GetBinary(argv[2]);
     // etc.
-	// Remember to delete the EntryData and its data members.
-	// ...
+    // Remember to delete the EntryData and its data members.
+    // ...
 }
 ```
