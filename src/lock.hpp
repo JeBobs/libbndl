@@ -1,18 +1,21 @@
+#pragma once
 #include <mutex>
 
-class Lock
+namespace libbndl
 {
-public:
-	Lock(std::mutex &m)
-		: m_mutex(m)
+	class Lock
 	{
-		m_mutex.lock();
-	}
-	~Lock()
-	{
-		m_mutex.unlock();
-	}
+	public:
+		Lock(std::mutex &m) : m_mutex(m)
+		{
+			m_mutex.lock();
+		}
+		~Lock()
+		{
+			m_mutex.unlock();
+		}
 
-private:
-	std::mutex &m_mutex;
-};
+	private:
+		std::mutex &m_mutex;
+	};
+}

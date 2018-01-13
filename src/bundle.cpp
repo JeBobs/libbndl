@@ -1,7 +1,6 @@
 #include <libbndl/bundle.hpp>
 #include "util.hpp"
 #include "lock.hpp"
-#include <iostream>
 #include <algorithm>
 #include <cassert>
 #include <zlib.h>
@@ -75,8 +74,8 @@ bool Bundle::Load(const std::string& name)
 		Entry e;
 
 		// These are stored in bundle as 64-bit (8-byte), but are really 32-bit.
-		auto fileID = (uint32_t)read<uint64_t>(m_stream, isBigEndian);
-		e.checksum = (uint32_t)read<uint64_t>(m_stream, isBigEndian);
+		auto fileID = static_cast<uint32_t>(read<uint64_t>(m_stream, isBigEndian));
+		e.checksum = static_cast<uint32_t>(read<uint64_t>(m_stream, isBigEndian));
 
 		// The uncompressed sizes have a high nibble that varies depending on the file type for whatever reason.
 		e.fileBlockDataInfo[0].uncompressedSize = read<uint32_t>(m_stream, isBigEndian) & ~(0xFU << 28);
@@ -126,7 +125,7 @@ Bundle::EntryData* Bundle::GetBinary(uint32_t fileID)
 		size_t readSize = m_compressed ? dataInfo.compressedSize : dataInfo.uncompressedSize;
 		if (readSize == 0)
 		{
-			data->fileBlockData[i].data = NULL;
+			data->fileBlockData[i].data = nullptr;
 			data->fileBlockData[i].size = 0;
 			continue;
 		}
@@ -139,7 +138,7 @@ Bundle::EntryData* Bundle::GetBinary(uint32_t fileID)
 		{
 			unsigned long uncompressedSize = dataInfo.uncompressedSize;
 			uint8_t *uncompressedBuffer = new uint8_t[uncompressedSize];
-			int ret = uncompress(uncompressedBuffer, &uncompressedSize, buffer, (unsigned long)readSize);
+			int ret = uncompress(uncompressedBuffer, &uncompressedSize, buffer, static_cast<unsigned long>(readSize));
 
 			assert(ret == Z_OK);
 			assert(uncompressedSize == dataInfo.uncompressedSize);
@@ -174,7 +173,7 @@ Bundle::Entry Bundle::GetInfo(uint32_t fileID)
 {
 	auto it = m_entries.find(fileID);
 	if (it == m_entries.end())
-		return Entry();
+		return {};
 	
 	return it->second;
 }

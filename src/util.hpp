@@ -1,15 +1,18 @@
 #pragma once
 #include <fstream>
-#include <stdint.h>
+#include <cstdint>
+
 namespace libbndl
 {
 	template <typename T, typename = typename std::is_enum<T>::type>
-	struct safe_underlying_type {
+	struct safe_underlying_type
+	{
 		using type = T;
 	};
 
 	template <typename T>
-	struct safe_underlying_type<T, std::true_type> {
+	struct safe_underlying_type<T, std::true_type>
+	{
 		using type = std::underlying_type_t<T>;
 	};
 
@@ -23,10 +26,10 @@ namespace libbndl
 		return (v << 8) | (v >> 8);
 	}
 
-    inline uint32_t endianSwap(uint32_t v)
-    {
-        return (v << 24) | (v << 8 & 0xff0000) | (v >> 8 & 0xff00) | (v >> 24);
-    }
+	inline uint32_t endianSwap(uint32_t v)
+	{
+		return (v << 24) | (v << 8 & 0xff0000) | (v >> 8 & 0xff00) | (v >> 24);
+	}
 
 	inline uint64_t endianSwap(uint64_t v)
 	{
@@ -40,13 +43,13 @@ namespace libbndl
 			(v >> 56);
 	}
 
-    template <typename T, typename = typename std::enable_if<std::is_unsigned<typename safe_underlying_type<T>::type>::value>::type>
-	inline T read(std::fstream& stream, bool reverse = false)
+	template <typename T, typename = typename std::enable_if<std::is_unsigned<typename safe_underlying_type<T>::type>::value>::type>
+	T read(std::fstream& stream, bool reverse = false)
 	{
 		T result;
 		stream.read(reinterpret_cast<char*>(&result), sizeof(T));
 		if (reverse)
-			result = (T)endianSwap(result);
+			result = static_cast<T>(endianSwap(result));
 		return result;
 	}
 }

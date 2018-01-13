@@ -1,5 +1,5 @@
 set(HEADER_DIR ${LIBBNDL_ROOT}/include/libbndl)
-set(PUBLIC_HEADERS  ${HEADER_DIR}/bundle.hpp)
+set(PUBLIC_HEADERS ${HEADER_DIR}/bundle.hpp)
 
 file(GLOB_RECURSE SRC_FILES
 	"*.c"
@@ -8,8 +8,8 @@ file(GLOB_RECURSE SRC_FILES
     "*.cpp"
 )
 
-add_library(libbndl STATIC   ${SRC_FILES}
-							${PUBLIC_HEADERS})
+add_library(libbndl STATIC  ${SRC_FILES}
+                            ${PUBLIC_HEADERS})
 
 add_subdirectory(${LIBBNDL_ROOT}/deps/zlib ${CMAKE_CURRENT_BINARY_DIR}/zlib_build)
 add_dependencies(libbndl zlibstatic)
