@@ -19,7 +19,7 @@ install:
 - git submodule update --init --recursive
 
 before_build:
-- cmake -Bbuild -G "%CMAKE_GENERATOR%" -DCMAKE_PREFIX_PATH="%QT5_DIR%" -DCMAKE_BUILD_TYPE="RelWithDebInfo" -DCMAKE_MAKE_PROGRAM="C:\\Program Files (x86)\\Microsoft Visual Studio\\2017\\Community\\Common7\\IDE\\CommonExtensions\\Microsoft\\CMake\\Ninja\\ninja.exe"
+- cmake -H. -Bbuild -G "%CMAKE_GENERATOR%" -DCMAKE_PREFIX_PATH="%QT5_DIR%" -DCMAKE_BUILD_TYPE="RelWithDebInfo" -DCMAKE_MAKE_PROGRAM="C:\\Program Files (x86)\\Microsoft Visual Studio\\2017\\Community\\Common7\\IDE\\CommonExtensions\\Microsoft\\CMake\\Ninja\\ninja.exe"
 
 build_script:
 - cmake --build build
