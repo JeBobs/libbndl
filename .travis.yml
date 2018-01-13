@@ -1,7 +1,7 @@
 # Cpp language
 language: cpp
 sudo: required
-dist: xenial
+dist: trusty
 
 # Compiler selection
 compiler:
@@ -13,15 +13,23 @@ cache:
 # Build matrix
 addons:
   apt:
+    sources: 
+        - george-edison55-cmake-3.x
+        - ubuntu-toolchain-r-test
+		- sourceline: "ppa:beineri/opt-qt593-trusty"
     packages:
         - clang-3.8
         - g++-5
         - gcc-5
         - cmake
+        - cmake-data
         - libpthread-stubs0-dev
-        - qt5-default
-        - libqt5opengl5-dev
-        - qtmultimedia5-dev
+        #- qt5-default
+        #- libqt5opengl5-dev
+        #- qtmultimedia5-dev
+		# Above replaced by below for Beineri PPA
+		- qt59base
+		- qt59multimedia
 # Install
 install:
   - if [ "$TRAVIS_OS_NAME" = "linux" -a "$CXX" = "g++" ]; then export CXX="g++-5" CC="gcc-5"; fi
