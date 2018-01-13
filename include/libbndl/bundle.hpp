@@ -163,6 +163,7 @@ namespace libbndl
 		//void AddEntry(uint32_t fileID, const uint8_t* data, size_t size, bool overwrite = true);
 
 		std::vector<uint32_t> ListEntries();
+		std::map<FileType, std::vector<uint32_t>> ListEntriesByFileType();
 	private:
 		std::mutex					m_mutex;
 		std::map<uint32_t, Entry>	m_entries;

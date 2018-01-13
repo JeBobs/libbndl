@@ -196,3 +196,13 @@ std::vector<uint32_t> Bundle::ListEntries()
 	}
 	return entries;
 }
+
+std::map<Bundle::FileType, std::vector<uint32_t>> Bundle::ListEntriesByFileType()
+{
+	std::map<Bundle::FileType, std::vector<uint32_t>> entriesByFileType;
+	for (const auto& e : m_entries)
+	{
+		entriesByFileType[e.second.fileType].push_back(e.first);
+	}
+	return entriesByFileType;
+}
