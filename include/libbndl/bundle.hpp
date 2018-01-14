@@ -146,6 +146,7 @@ namespace libbndl
 		{
 			EntryDataBlock fileBlockData[3];
 		};
+
 	public:
 		bool Load(const std::string& name);
 		bool Write(const std::string& name);
@@ -154,6 +155,7 @@ namespace libbndl
 		Entry GetInfo(uint32_t fileID);
 		//get entry binary
 		EntryData* GetBinary(uint32_t fileID);
+		EntryDataBlock* GetBinary(uint32_t fileID, uint32_t fileBlock);
 		//get entry as string
 		//std::string GetText(uint32_t fileID);
 		//get entry stream

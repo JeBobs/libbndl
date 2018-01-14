@@ -106,8 +106,25 @@ bool Bundle::Write(const std::string& name)
 	return false;
 }
 
-// TODO: Check whether this actually works with big endian bundle.
 Bundle::EntryData* Bundle::GetBinary(uint32_t fileID)
+{
+	auto it = m_entries.find(fileID);
+	if (it == m_entries.end())
+		return nullptr;
+
+	auto data = new EntryData;
+	for (auto i = 0; i < 3; i++)
+	{
+		EntryDataBlock *dataBlock = GetBinary(fileID, i);
+		data->fileBlockData[i] = *dataBlock;
+		delete dataBlock;
+	}
+
+	return data;
+}
+
+// TODO: Check whether this actually works with big endian bundle.
+Bundle::EntryDataBlock* Bundle::GetBinary(uint32_t fileID, uint32_t fileBlock)
 {
 	auto it = m_entries.find(fileID);
 	if (it == m_entries.end())
@@ -117,41 +134,38 @@ Bundle::EntryData* Bundle::GetBinary(uint32_t fileID)
 
 	Entry e = it->second;
 
-	auto data = new EntryData;
-	for (auto i = 0; i < 3; i++)
+	auto dataBlock = new EntryDataBlock;
+	EntryDataInfo dataInfo = e.fileBlockDataInfo[fileBlock];
+
+	size_t readSize = m_compressed ? dataInfo.compressedSize : dataInfo.uncompressedSize;
+	if (readSize == 0)
 	{
-		EntryDataInfo dataInfo = e.fileBlockDataInfo[i];
-
-		size_t readSize = m_compressed ? dataInfo.compressedSize : dataInfo.uncompressedSize;
-		if (readSize == 0)
-		{
-			data->fileBlockData[i].data = nullptr;
-			data->fileBlockData[i].size = 0;
-			continue;
-		}
-
-		uint8_t *buffer = new uint8_t[readSize];
-		m_stream.seekg(m_fileBlockOffsets[i] + dataInfo.offset);
-		m_stream.read(reinterpret_cast<char*>(buffer), readSize);
-
-		if (m_compressed)
-		{
-			unsigned long uncompressedSize = dataInfo.uncompressedSize;
-			uint8_t *uncompressedBuffer = new uint8_t[uncompressedSize];
-			int ret = uncompress(uncompressedBuffer, &uncompressedSize, buffer, static_cast<unsigned long>(readSize));
-
-			assert(ret == Z_OK);
-			assert(uncompressedSize == dataInfo.uncompressedSize);
-
-			delete[] buffer;
-			buffer = uncompressedBuffer;
-		}
-
-		data->fileBlockData[i].data = buffer;
-		data->fileBlockData[i].size = dataInfo.uncompressedSize;
+		dataBlock->data = nullptr;
+		dataBlock->size = 0;
+		return dataBlock;
 	}
 
-	return data;
+	uint8_t *buffer = new uint8_t[readSize];
+	m_stream.seekg(m_fileBlockOffsets[fileBlock] + dataInfo.offset);
+	m_stream.read(reinterpret_cast<char*>(buffer), readSize);
+
+	if (m_compressed)
+	{
+		unsigned long uncompressedSize = dataInfo.uncompressedSize;
+		uint8_t *uncompressedBuffer = new uint8_t[uncompressedSize];
+		int ret = uncompress(uncompressedBuffer, &uncompressedSize, buffer, static_cast<unsigned long>(readSize));
+
+		assert(ret == Z_OK);
+		assert(uncompressedSize == dataInfo.uncompressedSize);
+
+		delete[] buffer;
+		buffer = uncompressedBuffer;
+	}
+
+	dataBlock->data = buffer;
+	dataBlock->size = dataInfo.uncompressedSize;
+
+	return dataBlock;
 }
 
 /*std::string Bundle::GetText(uint32_t fileID)
