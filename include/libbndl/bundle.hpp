@@ -151,21 +151,15 @@ namespace libbndl
 		bool Load(const std::string& name);
 		bool Write(const std::string& name);
 
-		//get entry info
-		Entry GetInfo(uint32_t fileID);
-		//get entry binary
+		Entry GetInfo(uint32_t fileID) const;
 		EntryData* GetBinary(uint32_t fileID);
 		EntryDataBlock* GetBinary(uint32_t fileID, uint32_t fileBlock);
-		//get entry as string
-		//std::string GetText(uint32_t fileID);
-		//get entry stream
-		//std::istream GetStream(uint32_t fileID);
-		//add entry 
+
 		//void AddEntry(uint32_t fileID, const std::string& text, bool overwrite = true);
 		//void AddEntry(uint32_t fileID, const uint8_t* data, size_t size, bool overwrite = true);
 
-		std::vector<uint32_t> ListEntries();
-		std::map<FileType, std::vector<uint32_t>> ListEntriesByFileType();
+		std::vector<uint32_t> ListEntries() const;
+		std::map<FileType, std::vector<uint32_t>> ListEntriesByFileType() const;
 	private:
 		std::mutex					m_mutex;
 		std::map<uint32_t, Entry>	m_entries;

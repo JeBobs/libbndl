@@ -147,13 +147,13 @@ Bundle::EntryDataBlock* Bundle::GetBinary(uint32_t fileID, uint32_t fileBlock)
 
 	uint8_t *buffer = new uint8_t[readSize];
 	m_stream.seekg(m_fileBlockOffsets[fileBlock] + dataInfo.offset);
-	m_stream.read(reinterpret_cast<char*>(buffer), readSize);
+	m_stream.read(reinterpret_cast<char *>(buffer), readSize);
 
 	if (m_compressed)
 	{
-		unsigned long uncompressedSize = dataInfo.uncompressedSize;
+		uLongf uncompressedSize = dataInfo.uncompressedSize;
 		uint8_t *uncompressedBuffer = new uint8_t[uncompressedSize];
-		int ret = uncompress(uncompressedBuffer, &uncompressedSize, buffer, static_cast<unsigned long>(readSize));
+		int ret = uncompress(uncompressedBuffer, &uncompressedSize, buffer, static_cast<uLong>(readSize));
 
 		assert(ret == Z_OK);
 		assert(uncompressedSize == dataInfo.uncompressedSize);
@@ -168,22 +168,7 @@ Bundle::EntryDataBlock* Bundle::GetBinary(uint32_t fileID, uint32_t fileBlock)
 	return dataBlock;
 }
 
-/*std::string Bundle::GetText(uint32_t fileID)
-{
-	auto it = m_entries.find(fileID);
-	if (it == m_entries.end())
-		return std::string();
-
-	Lock mutexLock(m_mutex);
-	Entry e = it->second;
-	std::string buffer;
-	buffer.resize(e.Size);
-	m_stream.seekg(e.Offset, std::ios::beg);
-	m_stream.read(const_cast<char*>(buffer.data()), e.Size);
-	return buffer;
-}*/
-
-Bundle::Entry Bundle::GetInfo(uint32_t fileID)
+Bundle::Entry Bundle::GetInfo(uint32_t fileID) const
 {
 	auto it = m_entries.find(fileID);
 	if (it == m_entries.end())
@@ -201,7 +186,7 @@ void Bundle::AddEntry(uint32_t fileID, const uint8_t * data, size_t size, bool o
 }*/
 
 
-std::vector<uint32_t> Bundle::ListEntries()
+std::vector<uint32_t> Bundle::ListEntries() const
 {
 	std::vector<uint32_t> entries;
 	for (const auto& e : m_entries)
@@ -211,7 +196,7 @@ std::vector<uint32_t> Bundle::ListEntries()
 	return entries;
 }
 
-std::map<Bundle::FileType, std::vector<uint32_t>> Bundle::ListEntriesByFileType()
+std::map<Bundle::FileType, std::vector<uint32_t>> Bundle::ListEntriesByFileType() const
 {
 	std::map<Bundle::FileType, std::vector<uint32_t>> entriesByFileType;
 	for (const auto& e : m_entries)
