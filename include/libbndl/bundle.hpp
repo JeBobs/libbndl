@@ -151,6 +151,16 @@ namespace libbndl
 		bool Load(const std::string& name);
 		bool Write(const std::string& name);
 
+		Version GetVersion() const
+		{
+			return m_version;
+		}
+
+		Platform GetPlatform() const
+		{
+			return m_platform;
+		}
+
 		Entry GetInfo(uint32_t fileID) const;
 		EntryData* GetBinary(uint32_t fileID);
 		EntryDataBlock* GetBinary(uint32_t fileID, uint32_t fileBlock);
