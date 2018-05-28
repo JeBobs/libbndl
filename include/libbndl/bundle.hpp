@@ -19,9 +19,18 @@ namespace libbndl
 
 		enum Platform: uint32_t
 		{
-			PC = 1,
+			PC = 1, // (or PS4/XB1)
 			XBOX = 2 << 24, // Big endian
 			PS3 = 3 << 24, // Big endian
+		};
+
+		enum Flags: uint32_t
+		{
+			Compressed = 1,
+			UnknownFlag1 = 2, // Always set?
+			UnknownFlag2 = 4, // Always set?
+			HasResourceStringTable = 8
+			// There may be more but they are always 0 it seems.
 		};
 
 		enum FileType: uint32_t

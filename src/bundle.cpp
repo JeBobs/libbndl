@@ -58,10 +58,8 @@ bool Bundle::Load(const std::string& name)
 	m_fileBlockOffsets[1] = read<uint32_t>(m_stream, isBigEndian);
 	m_fileBlockOffsets[2] = read<uint32_t>(m_stream, isBigEndian);
 
-	auto compressedFlag = read<uint32_t>(m_stream, isBigEndian);
-	m_compressed = (compressedFlag == 7);
-	if (!m_compressed && compressedFlag != 6)
-		return false; // Some unknown flag or something? I'm guessing the LSB is the compression part of the flag, while bits 2 and 3 (starting from the LSB) are always set?
+	auto flags = read<Flags>(m_stream, isBigEndian);
+	m_compressed = (flags & Compressed);
 
 	// Last 8 bytes are padding.
 
