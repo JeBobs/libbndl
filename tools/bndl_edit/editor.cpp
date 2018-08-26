@@ -189,7 +189,10 @@ void Editor::newFile()
 void Editor::open()
 {
 	auto fileName = QFileDialog::getOpenFileName(this,
-    tr("Open Archive"), "", tr("BUNDLE Files (*.BNDL, *.BUNDLE)"));
+    tr("Open Archive"), "", tr("BUNDLE Files (*.BUNDLE; *.BNDL; *.BIN; *.DAT; *.TEX; *.FONT)"));
+
+	if (fileName == nullptr)
+		return;
 	
 	if (m_archive.Load(fileName.toStdString()))
 	{
@@ -206,7 +209,12 @@ void Editor::open()
 void Editor::save()
 {
 	auto fileName = QFileDialog::getSaveFileName(this,
-    tr("Save Archive"), "", tr("BUNDLE Files (*.BNDL, *.BUNDLE)"));
+    tr("Save Archive"), "", tr("BUNDLE Files (*.BUNDLE; *.BNDL; *.BIN; *.DAT; *.TEX; *.FONT)"));
+
+	if (fileName == nullptr)
+		return;
+
+	m_archive.Save(fileName.toStdString());
 }
 
 void Editor::saveAs()

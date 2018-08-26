@@ -1,18 +1,21 @@
 #include <libbndl/bundle.hpp>
-#include "util.hpp"
 #include "lock.hpp"
-#include <algorithm>
+#include <binaryio/binaryreader.hpp>
+#include <binaryio/binarywriter.hpp>
+#include <fstream>
 #include <cassert>
 #include <zlib.h>
+#include <pugixml.hpp>
+#include <regex>
+#include <iomanip>
 
 using namespace libbndl;
 
 bool Bundle::Load(const std::string &name)
 {
-	if (m_stream.is_open())
-		m_stream.close();
+	std::ifstream m_stream;
 
-	m_stream.open(name, std::ios::in | std::ios::binary);
+	m_stream.open(name, std::ios::in | std::ios::binary | std::ios::ate);
 
 	// Check if archive exists
 	if (m_stream.fail())
@@ -20,10 +23,15 @@ bool Bundle::Load(const std::string &name)
 
 	Lock mutexLock(m_mutex);
 
+	const auto fileSize = m_stream.tellg();
+	m_stream.seekg(0, std::ios::beg);
+	auto *buffer = new uint8_t[fileSize];
+	m_stream.read(reinterpret_cast<char *>(buffer), fileSize);
+	m_stream.close();
+	auto reader = binaryio::BinaryReader(buffer);
+
 	// Check if it's a BNDL archive
-	std::string magic;
-	for (auto i = 0; i < 4; i++)
-		magic += m_stream.get();
+	auto magic = reader.ReadString(4);
 	if (magic == std::string("bndl"))
 		m_version = BNDL;
 	else if (magic == std::string("bnd2"))
@@ -35,62 +43,95 @@ bool Bundle::Load(const std::string &name)
 	if (m_version == BNDL)
 		return false;
 
-	auto bundleVersion = read<uint32_t>(m_stream);
+	auto bundleVersion = reader.Read<uint32_t>();
 
-	m_platform = read<Platform>(m_stream);
-	const auto isBigEndian = (m_platform != PC);
+	m_platform = reader.Read<Platform>();
+	reader.SetBigEndian(m_platform != PC);
 
-	if (isBigEndian)
-		bundleVersion = endianSwap(bundleVersion);
+	if (reader.IsBigEndian())
+		bundleVersion = (bundleVersion << 24) | (bundleVersion << 8 & 0xff0000) | (bundleVersion >> 8 & 0xff00) | (bundleVersion >> 24);
 	// Little sanity check.
 	if (bundleVersion != 2)
 		return false;
 
-	const auto headerLength = read<uint32_t>(m_stream, isBigEndian);
+	const auto headerLength = reader.Read<uint32_t>();
 	// Another sanity check.
 	if (headerLength != 48)
 		return false;
 
-	m_numEntries = read<uint32_t>(m_stream, isBigEndian);
+	m_numEntries = reader.Read<uint32_t>();
 
-	m_idBlockOffset = read<uint32_t>(m_stream, isBigEndian);
-	m_fileBlockOffsets[0] = read<uint32_t>(m_stream, isBigEndian);
-	m_fileBlockOffsets[1] = read<uint32_t>(m_stream, isBigEndian);
-	m_fileBlockOffsets[2] = read<uint32_t>(m_stream, isBigEndian);
+	m_idBlockOffset = reader.Read<uint32_t>();
+	m_fileBlockOffsets[0] = reader.Read<uint32_t>();
+	m_fileBlockOffsets[1] = reader.Read<uint32_t>();
+	m_fileBlockOffsets[2] = reader.Read<uint32_t>();
 
-	const auto flags = read<Flags>(m_stream, isBigEndian);
-	m_compressed = (flags & Compressed);
+	m_flags = reader.Read<Flags>();
 
 	// Last 8 bytes are padding.
+	reader.Seek(8, std::ios::cur);
 
-
-	m_stream.seekg(m_idBlockOffset);
 
 	m_entries.clear();
+	if (m_flags & HasResourceStringTable)
+	{
+		const auto rstXML = reader.ReadString();
+
+		pugi::xml_document doc;
+		if (doc.load_string(rstXML.c_str(), pugi::parse_minimal))
+		{
+			for (const auto resource : doc.child("ResourceStringTable").children("Resource"))
+			{
+				const auto fileID = std::stoul(resource.attribute("id").value(), nullptr, 16);
+				Entry e = {};
+				e.name = resource.attribute("name").value();
+				e.typeName = resource.attribute("type").value();
+				m_entries[fileID] = e;
+			}
+		}
+	}
+
+
+	reader.Seek(m_idBlockOffset);
+
 	for (auto i = 0U; i < m_numEntries; i++)
 	{
-		Entry e;
-
 		// These are stored in bundle as 64-bit (8-byte), but are really 32-bit.
-		auto fileID = static_cast<uint32_t>(read<uint64_t>(m_stream, isBigEndian));
-		e.checksum = static_cast<uint32_t>(read<uint64_t>(m_stream, isBigEndian));
+		auto fileID = static_cast<uint32_t>(reader.Read<uint64_t>());
+		assert(fileID != 0);
+		Entry e = m_entries[fileID];
+		e.checksum = static_cast<uint32_t>(reader.Read<uint64_t>());
 
 		// The uncompressed sizes have a high nibble that varies depending on the file type for whatever reason.
-		e.fileBlockDataInfo[0].uncompressedSize = read<uint32_t>(m_stream, isBigEndian) & ~(0xFU << 28);
-		e.fileBlockDataInfo[1].uncompressedSize = read<uint32_t>(m_stream, isBigEndian) & ~(0xFU << 28);
-		e.fileBlockDataInfo[2].uncompressedSize = read<uint32_t>(m_stream, isBigEndian) & ~(0xFU << 28);
-		e.fileBlockDataInfo[0].compressedSize = read<uint32_t>(m_stream, isBigEndian);
-		e.fileBlockDataInfo[1].compressedSize = read<uint32_t>(m_stream, isBigEndian);
-		e.fileBlockDataInfo[2].compressedSize = read<uint32_t>(m_stream, isBigEndian);
-		e.fileBlockDataInfo[0].offset = read<uint32_t>(m_stream, isBigEndian);
-		e.fileBlockDataInfo[1].offset = read<uint32_t>(m_stream, isBigEndian);
-		e.fileBlockDataInfo[2].offset = read<uint32_t>(m_stream, isBigEndian);
+		e.fileBlockDataInfo[0].uncompressedSize = reader.Read<uint32_t>();
+		e.fileBlockDataInfo[1].uncompressedSize = reader.Read<uint32_t>();
+		e.fileBlockDataInfo[2].uncompressedSize = reader.Read<uint32_t>();
+		e.fileBlockDataInfo[0].compressedSize = reader.Read<uint32_t>();
+		e.fileBlockDataInfo[1].compressedSize = reader.Read<uint32_t>();
+		e.fileBlockDataInfo[2].compressedSize = reader.Read<uint32_t>();
 
-		e.pointersOffset = read<uint32_t>(m_stream, isBigEndian);
-		e.fileType = read<FileType>(m_stream, isBigEndian);
-		e.numberOfPointers = read<uint16_t>(m_stream, isBigEndian);
+		auto dataReader = reader.Copy();
+		for (auto j = 0; j < 3; j++)
+		{
+			dataReader.Seek(m_fileBlockOffsets[j] + reader.Read<uint32_t>()); // Read offset
 
-		m_stream.seekg(2, std::ios::cur); // Padding
+			auto &dataInfo = e.fileBlockDataInfo[j];
+
+			const auto readSize = (m_flags & Compressed) ? dataInfo.compressedSize : (dataInfo.uncompressedSize & ~(0xFU << 28));
+			if (readSize == 0)
+			{
+				dataInfo.data = nullptr;
+				continue;
+			}
+
+			dataInfo.data = dataReader.Read<uint8_t *>(readSize);
+		}
+
+		e.pointersOffset = reader.Read<uint32_t>();
+		e.fileType = reader.Read<FileType>();
+		e.numberOfPointers = reader.Read<uint16_t>();
+
+		reader.Seek(2, std::ios::cur); // Padding
 
 		m_entries[fileID] = e;
 	}
@@ -98,10 +139,121 @@ bool Bundle::Load(const std::string &name)
 	return true;
 }
 
-bool Bundle::Write(const std::string& name)
+void Bundle::Save(const std::string& name)
 {
-	// Unimplemented for now.
-	return false;
+	assert(m_version == BND2);
+
+	auto writer = binaryio::BinaryWriter();
+
+	writer.Write("bnd2", 4);
+	writer.Write<uint32_t>(2); // Bundle version
+	writer.Write(PC); // Only PC writing supported for now.
+	writer.Write(48); // Header length
+
+	writer.Write(m_numEntries);
+
+	auto idBlockPointerPos = writer.GetOffset();
+	writer.Seek(4, std::ios::cur); // write later
+	off_t fileBlockPointerPos[3];
+	for (auto &pointerPos : fileBlockPointerPos)
+	{
+		pointerPos = writer.GetOffset();
+		writer.Seek(4, std::ios::cur);
+	}
+
+	writer.Write(m_flags);
+
+	writer.Seek(8, std::ios::cur); // padding
+
+
+	// RESOURCE STRING TABLE
+	if (m_flags & HasResourceStringTable)
+	{
+		pugi::xml_document doc;
+		auto root = doc.append_child("ResourceStringTable");
+		for (const auto &entry : m_entries)
+		{
+			auto entryChild = root.append_child("Resource");
+
+			std::stringstream idStream;
+			idStream << std::hex << std::setw(8) << std::setfill('0') << entry.first;
+
+			entryChild.append_attribute("id").set_value(idStream.str().c_str());
+			entryChild.append_attribute("type").set_value(entry.second.typeName.c_str());
+			entryChild.append_attribute("name").set_value(entry.second.name.c_str());
+		}
+
+		std::stringstream out;
+		doc.save(out, "\t", pugi::format_indent | pugi::format_no_declaration, pugi::encoding_utf8);
+		const auto outStr = std::regex_replace(out.str(), std::regex(" />\n"), "/>\n");
+		writer.Write(outStr);
+
+		writer.Align(16);
+	}
+
+
+	// ID BLOCK
+	writer.VisitAndWrite<uint32_t>(idBlockPointerPos, writer.GetOffset());
+	auto entryDataPointerPos = std::vector<off_t[3]>(m_numEntries);
+	auto entryIter = m_entries.begin();
+	for (auto i = 0U; i < m_numEntries; i++)
+	{
+		writer.Write<uint64_t>(entryIter->first);
+
+		Entry e = entryIter->second;
+
+		writer.Write<uint64_t>(e.checksum);
+
+		for (auto &dataInfo : e.fileBlockDataInfo)
+			writer.Write(dataInfo.uncompressedSize);
+		for (auto &dataInfo : e.fileBlockDataInfo)
+			writer.Write(dataInfo.compressedSize);
+		for (auto j = 0; j < 3; j++)
+		{
+			entryDataPointerPos[i][j] = writer.GetOffset();
+			writer.Seek(4, std::ios::cur);
+		}
+
+		writer.Write(e.pointersOffset);
+		writer.Write(e.fileType);
+		writer.Write(e.numberOfPointers);
+
+		writer.Seek(2, std::ios::cur); // padding
+
+		entryIter = std::next(entryIter);
+	}
+
+	// DATA BLOCK
+	for (auto i = 0; i < 3; i++)
+	{
+		const auto blockStart = writer.GetOffset();
+		writer.VisitAndWrite<uint32_t>(fileBlockPointerPos[i], blockStart);
+
+		entryIter = m_entries.begin();
+		for (auto j = 0U; j < m_numEntries; j++)
+		{
+			Entry e = entryIter->second;
+
+			const auto dataInfo = e.fileBlockDataInfo[i];
+			const auto readSize = (m_flags & Compressed) ? dataInfo.compressedSize : (dataInfo.uncompressedSize & ~(0xFU << 28));
+
+			if (readSize > 0)
+			{
+				writer.VisitAndWrite<uint32_t>(entryDataPointerPos[j][i], writer.GetOffset() - blockStart);
+				writer.Write(dataInfo.data, readSize);
+				writer.Align((i != 0 && j != m_numEntries - 1) ? 0x80 : 16);
+			}
+
+			entryIter = std::next(entryIter);
+		}
+
+		if (i != 2)
+			writer.Align(0x80);
+	}
+
+	std::ofstream f(name, std::ios::out | std::ios::binary);
+	f << writer.GetStream().rdbuf();
+	f.close();
 }
 
 Bundle::EntryData* Bundle::GetBinary(uint32_t fileID)
@@ -132,35 +284,32 @@ Bundle::EntryDataBlock* Bundle::GetBinary(uint32_t fileID, uint32_t fileBlock)
 	const Entry e = it->second;
 
 	const auto dataBlock = new EntryDataBlock;
-	EntryDataInfo dataInfo = e.fileBlockDataInfo[fileBlock];
+	const auto dataInfo = e.fileBlockDataInfo[fileBlock];
 
-	const size_t readSize = m_compressed ? dataInfo.compressedSize : dataInfo.uncompressedSize;
-	if (readSize == 0)
+	if (dataInfo.data == nullptr)
 	{
 		dataBlock->data = nullptr;
 		dataBlock->size = 0;
 		return dataBlock;
 	}
 
-	auto *buffer = new uint8_t[readSize];
-	m_stream.seekg(m_fileBlockOffsets[fileBlock] + dataInfo.offset);
-	m_stream.read(reinterpret_cast<char *>(buffer), readSize);
+	auto buffer = dataInfo.data;
+	const auto uncompressedSize = dataInfo.uncompressedSize & ~(0xFU << 28);
 
-	if (m_compressed)
+	if (m_flags & Compressed)
 	{
-		uLongf uncompressedSize = dataInfo.uncompressedSize;
+		uLongf uncompressedSizeLong = uncompressedSize;
 		auto *uncompressedBuffer = new uint8_t[uncompressedSize];
-		const auto ret = uncompress(uncompressedBuffer, &uncompressedSize, buffer, static_cast<uLong>(readSize));
+		const auto ret = uncompress(uncompressedBuffer, &uncompressedSizeLong, buffer, static_cast<uLong>(dataInfo.compressedSize));
 
 		assert(ret == Z_OK);
-		assert(uncompressedSize == dataInfo.uncompressedSize);
+		assert(uncompressedSize == uncompressedSizeLong);
 
-		delete[] buffer;
 		buffer = uncompressedBuffer;
 	}
 
 	dataBlock->data = buffer;
-	dataBlock->size = dataInfo.uncompressedSize;
+	dataBlock->size = uncompressedSize;
 
 	return dataBlock;
 }
@@ -174,14 +323,10 @@ Bundle::Entry Bundle::GetInfo(uint32_t fileID) const
 	return it->second;
 }
 
-/*void Bundle::AddEntry(uint32_t fileID, const std::string & text, bool overwrite)
+/*void Bundle::AddEntry(uint32_t fileID, EntryData *data)
 {
-}
-
-void Bundle::AddEntry(uint32_t fileID, const uint8_t * data, size_t size, bool overwrite)
-{
+	//
 }*/
-
 
 std::vector<uint32_t> Bundle::ListEntries() const
 {

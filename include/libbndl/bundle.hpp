@@ -2,7 +2,6 @@
 #include <string>
 #include <map>
 #include <vector>
-#include <fstream>
 #include <mutex>
 
 namespace libbndl
@@ -126,22 +125,24 @@ namespace libbndl
 
 		struct EntryDataInfo
 		{
-			uint32_t offset;
 			uint32_t uncompressedSize;
 			uint32_t compressedSize;
+			uint8_t *data;
 		};
 
-		// This is not the same order as in the bundle. It just makes so much more sense from an API POV.
 		struct Entry
 		{
+			// In ResourceStringTable
+			std::string name;
+			std::string typeName;
+
 			uint32_t checksum; // Stored in bundle as 64-bit (8-byte)
 
 			struct EntryDataInfo fileBlockDataInfo[3];
 
 			uint32_t pointersOffset;
-			uint16_t numberOfPointers;
-
 			FileType fileType;
+			uint16_t numberOfPointers;
 		};
 
 		struct EntryDataBlock
@@ -157,7 +158,7 @@ namespace libbndl
 
 
 		bool Load(const std::string &name);
-		bool Write(const std::string &name);
+		void Save(const std::string &name);
 
 		Version GetVersion() const
 		{
@@ -173,8 +174,8 @@ namespace libbndl
 		EntryData* GetBinary(uint32_t fileID);
 		EntryDataBlock* GetBinary(uint32_t fileID, uint32_t fileBlock);
 
-		//void AddEntry(uint32_t fileID, const std::string& text, bool overwrite = true);
-		//void AddEntry(uint32_t fileID, const uint8_t* data, size_t size, bool overwrite = true);
+		// Add Entry coming soon
+		//void ReplaceEntry(uint32_t fileID, EntryData *data);
 
 		std::vector<uint32_t> ListEntries() const;
 		std::map<FileType, std::vector<uint32_t>> ListEntriesByFileType() const;
@@ -182,13 +183,12 @@ namespace libbndl
 	private:
 		std::mutex					m_mutex;
 		std::map<uint32_t, Entry>	m_entries;
-		std::fstream				m_stream;
 
 		Version						m_version;
 		Platform					m_platform;
 		uint32_t					m_numEntries;
 		uint32_t					m_idBlockOffset;
 		uint32_t					m_fileBlockOffsets[3];
-		bool						m_compressed;
+		Flags						m_flags;
 	};
 }

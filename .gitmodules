@@ -6,3 +6,9 @@
 	url = https://github.com/madler/zlib
 	branch = master
 	ignore = dirty
+[submodule "deps/libbinaryio"]
+	path = deps/libbinaryio
+	url = https://github.com/Bo98/libbinaryio
+[submodule "deps/pugixml"]
+	path = deps/pugixml
+	url = https://github.com/zeux/pugixml
