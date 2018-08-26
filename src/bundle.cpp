@@ -293,22 +293,25 @@ Bundle::EntryDataBlock* Bundle::GetBinary(uint32_t fileID, uint32_t fileBlock)
 		return dataBlock;
 	}
 
-	auto buffer = dataInfo.data;
+	const auto buffer = dataInfo.data;
 	const auto uncompressedSize = dataInfo.uncompressedSize & ~(0xFU << 28);
+
+	auto *uncompressedBuffer = new uint8_t[uncompressedSize];
 
 	if (m_flags & Compressed)
 	{
 		uLongf uncompressedSizeLong = uncompressedSize;
-		auto *uncompressedBuffer = new uint8_t[uncompressedSize];
 		const auto ret = uncompress(uncompressedBuffer, &uncompressedSizeLong, buffer, static_cast<uLong>(dataInfo.compressedSize));
 
 		assert(ret == Z_OK);
 		assert(uncompressedSize == uncompressedSizeLong);
-
-		buffer = uncompressedBuffer;
+	}
+	else
+	{
+		std::memcpy(uncompressedBuffer, buffer, uncompressedSize);
 	}
 
-	dataBlock->data = buffer;
+	dataBlock->data = uncompressedBuffer;
 	dataBlock->size = uncompressedSize;
 
 	return dataBlock;
