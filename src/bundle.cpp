@@ -7,7 +7,7 @@
 
 using namespace libbndl;
 
-bool Bundle::Load(const std::string& name)
+bool Bundle::Load(const std::string &name)
 {
 	if (m_stream.is_open())
 		m_stream.close();
@@ -38,7 +38,7 @@ bool Bundle::Load(const std::string& name)
 	auto bundleVersion = read<uint32_t>(m_stream);
 
 	m_platform = read<Platform>(m_stream);
-	auto isBigEndian = (m_platform != PC);
+	const auto isBigEndian = (m_platform != PC);
 
 	if (isBigEndian)
 		bundleVersion = endianSwap(bundleVersion);
@@ -46,7 +46,7 @@ bool Bundle::Load(const std::string& name)
 	if (bundleVersion != 2)
 		return false;
 
-	auto headerLength = read<uint32_t>(m_stream, isBigEndian);
+	const auto headerLength = read<uint32_t>(m_stream, isBigEndian);
 	// Another sanity check.
 	if (headerLength != 48)
 		return false;
@@ -58,7 +58,7 @@ bool Bundle::Load(const std::string& name)
 	m_fileBlockOffsets[1] = read<uint32_t>(m_stream, isBigEndian);
 	m_fileBlockOffsets[2] = read<uint32_t>(m_stream, isBigEndian);
 
-	auto flags = read<Flags>(m_stream, isBigEndian);
+	const auto flags = read<Flags>(m_stream, isBigEndian);
 	m_compressed = (flags & Compressed);
 
 	// Last 8 bytes are padding.
@@ -106,11 +106,11 @@ bool Bundle::Write(const std::string& name)
 
 Bundle::EntryData* Bundle::GetBinary(uint32_t fileID)
 {
-	auto it = m_entries.find(fileID);
+	const auto it = m_entries.find(fileID);
 	if (it == m_entries.end())
 		return nullptr;
 
-	auto data = new EntryData;
+	const auto data = new EntryData;
 	for (auto i = 0; i < 3; i++)
 	{
 		EntryDataBlock *dataBlock = GetBinary(fileID, i);
@@ -121,21 +121,20 @@ Bundle::EntryData* Bundle::GetBinary(uint32_t fileID)
 	return data;
 }
 
-// TODO: Check whether this actually works with big endian bundle.
 Bundle::EntryDataBlock* Bundle::GetBinary(uint32_t fileID, uint32_t fileBlock)
 {
-	auto it = m_entries.find(fileID);
+	const auto it = m_entries.find(fileID);
 	if (it == m_entries.end())
 		return nullptr;
 
 	Lock mutexLock(m_mutex);
 
-	Entry e = it->second;
+	const Entry e = it->second;
 
-	auto dataBlock = new EntryDataBlock;
+	const auto dataBlock = new EntryDataBlock;
 	EntryDataInfo dataInfo = e.fileBlockDataInfo[fileBlock];
 
-	size_t readSize = m_compressed ? dataInfo.compressedSize : dataInfo.uncompressedSize;
+	const size_t readSize = m_compressed ? dataInfo.compressedSize : dataInfo.uncompressedSize;
 	if (readSize == 0)
 	{
 		dataBlock->data = nullptr;
@@ -143,15 +142,15 @@ Bundle::EntryDataBlock* Bundle::GetBinary(uint32_t fileID, uint32_t fileBlock)
 		return dataBlock;
 	}
 
-	uint8_t *buffer = new uint8_t[readSize];
+	auto *buffer = new uint8_t[readSize];
 	m_stream.seekg(m_fileBlockOffsets[fileBlock] + dataInfo.offset);
 	m_stream.read(reinterpret_cast<char *>(buffer), readSize);
 
 	if (m_compressed)
 	{
 		uLongf uncompressedSize = dataInfo.uncompressedSize;
-		uint8_t *uncompressedBuffer = new uint8_t[uncompressedSize];
-		int ret = uncompress(uncompressedBuffer, &uncompressedSize, buffer, static_cast<uLong>(readSize));
+		auto *uncompressedBuffer = new uint8_t[uncompressedSize];
+		const auto ret = uncompress(uncompressedBuffer, &uncompressedSize, buffer, static_cast<uLong>(readSize));
 
 		assert(ret == Z_OK);
 		assert(uncompressedSize == dataInfo.uncompressedSize);
@@ -168,7 +167,7 @@ Bundle::EntryDataBlock* Bundle::GetBinary(uint32_t fileID, uint32_t fileBlock)
 
 Bundle::Entry Bundle::GetInfo(uint32_t fileID) const
 {
-	auto it = m_entries.find(fileID);
+	const auto it = m_entries.find(fileID);
 	if (it == m_entries.end())
 		return {};
 	
@@ -187,7 +186,7 @@ void Bundle::AddEntry(uint32_t fileID, const uint8_t * data, size_t size, bool o
 std::vector<uint32_t> Bundle::ListEntries() const
 {
 	std::vector<uint32_t> entries;
-	for (const auto& e : m_entries)
+	for (const auto &e : m_entries)
 	{
 		entries.push_back(e.first);
 	}
@@ -196,8 +195,8 @@ std::vector<uint32_t> Bundle::ListEntries() const
 
 std::map<Bundle::FileType, std::vector<uint32_t>> Bundle::ListEntriesByFileType() const
 {
-	std::map<Bundle::FileType, std::vector<uint32_t>> entriesByFileType;
-	for (const auto& e : m_entries)
+	std::map<FileType, std::vector<uint32_t>> entriesByFileType;
+	for (const auto &e : m_entries)
 	{
 		entriesByFileType[e.second.fileType].push_back(e.first);
 	}

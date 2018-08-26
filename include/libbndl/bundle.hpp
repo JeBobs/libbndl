@@ -3,7 +3,6 @@
 #include <map>
 #include <vector>
 #include <fstream>
-#include <istream>
 #include <mutex>
 
 namespace libbndl
@@ -156,9 +155,9 @@ namespace libbndl
 			EntryDataBlock fileBlockData[3];
 		};
 
-	public:
-		bool Load(const std::string& name);
-		bool Write(const std::string& name);
+
+		bool Load(const std::string &name);
+		bool Write(const std::string &name);
 
 		Version GetVersion() const
 		{
@@ -179,6 +178,7 @@ namespace libbndl
 
 		std::vector<uint32_t> ListEntries() const;
 		std::map<FileType, std::vector<uint32_t>> ListEntriesByFileType() const;
+
 	private:
 		std::mutex					m_mutex;
 		std::map<uint32_t, Entry>	m_entries;
