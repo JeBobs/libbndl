@@ -143,6 +143,8 @@ void Bundle::Save(const std::string& name)
 {
 	assert(m_version == BND2);
 
+	Lock mutexLock(m_mutex);
+
 	auto writer = binaryio::BinaryWriter();
 
 	writer.Write("bnd2", 4);
@@ -259,7 +261,7 @@ void Bundle::Save(const std::string& name)
 uint32_t Bundle::HashFileName(std::string fileName) const
 {
 	std::transform(fileName.begin(), fileName.end(), fileName.begin(), tolower);
-	return crc32(0, reinterpret_cast<const Bytef *>(fileName.c_str()), fileName.length());
+	return crc32_z(0, reinterpret_cast<const Bytef *>(fileName.c_str()), fileName.length());
 }
 
 Bundle::EntryData* Bundle::GetBinary(const std::string &fileName)
@@ -350,10 +352,74 @@ Bundle::EntryInfo Bundle::GetInfo(uint32_t fileID) const
 	return it->second.info;
 }
 
-/*void Bundle::AddEntry(uint32_t fileID, EntryData *data)
+bool Bundle::ReplaceEntry(const std::string &fileName, EntryData *data)
 {
-	//
-}*/
+	return ReplaceEntry(HashFileName(fileName), data);
+}
+
+bool Bundle::ReplaceEntry(uint32_t fileID, EntryData *data)
+{
+	const auto it = m_entries.find(fileID);
+	if (it == m_entries.end())
+		return false;
+
+	Lock mutexLock(m_mutex);
+
+	Entry &e = it->second;
+
+	for (auto i = 0; i < 3; i++)
+	{
+		const auto inDataInfo = data->fileBlockData[i];
+		auto &outDataInfo = e.fileBlockData[i];
+
+		if (inDataInfo.size == 0)
+		{
+			outDataInfo.data = nullptr;
+			outDataInfo.uncompressedSize = 0;
+			outDataInfo.compressedSize = 0;
+			continue;
+		}
+
+		uint8_t *buffer;
+
+		if (m_flags & Compressed)
+		{
+			const auto compBufferSize = compressBound(static_cast<uLong>(inDataInfo.size));
+			const auto compBuffer = new uint8_t[compBufferSize];
+			uLongf actualSize = compBufferSize;
+			const auto ret = compress2(compBuffer, &actualSize, inDataInfo.data, static_cast<uLong>(inDataInfo.size), Z_BEST_COMPRESSION);
+
+			if (ret != Z_OK)
+			{
+				delete[] compBuffer;
+				assert(0);
+				return false;
+			}
+
+			buffer = new uint8_t[actualSize];
+			std::memcpy(buffer, compBuffer, actualSize);
+			delete[] compBuffer;
+
+			outDataInfo.compressedSize = actualSize;
+		}
+		else
+		{
+			buffer = new uint8_t[inDataInfo.size];
+			std::memcpy(buffer, inDataInfo.data, inDataInfo.size);
+
+			outDataInfo.compressedSize = 0;
+		}
+
+		const auto highNibble = outDataInfo.uncompressedSize & (0xFU << 28); // TODO: how is this calculated?
+		outDataInfo.uncompressedSize = static_cast<uint32_t>(inDataInfo.size) | highNibble;
+		outDataInfo.data = buffer;
+	}
+
+	e.info.pointersOffset = data->pointersOffset;
+	e.info.numberOfPointers = data->numberOfPointers;
+
+	return true;
+}
 
 std::vector<uint32_t> Bundle::ListFileIDs() const
 {

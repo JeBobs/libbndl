@@ -18,7 +18,7 @@ namespace libbndl
 		enum Platform: uint32_t
 		{
 			PC = 1, // (or PS4/XB1)
-			XBOX = 2 << 24, // Big endian
+			Xbox360 = 2 << 24, // Big endian
 			PS3 = 3 << 24, // Big endian
 		};
 
@@ -37,9 +37,9 @@ namespace libbndl
 			Material = 0x01,
 			TextFile = 0x03,
 			VertexDesc = 0x0A,
-			Type0B = 0x0B,
+			Type0B = 0x0B, // unknown
 			Renderable = 0x0C,
-			Type0D = 0x0D,
+			Type0D = 0x0D, // unknown
 			TextureState = 0x0E,
 			MaterialState = 0x0F,
 			ShaderProgramBuffer = 0x12,
@@ -185,7 +185,9 @@ namespace libbndl
 		EntryDataBlock* GetBinary(uint32_t fileID, uint32_t fileBlock);
 
 		// Add Entry coming soon
-		//void ReplaceEntry(uint32_t fileID, EntryData *data);
+
+		bool ReplaceEntry(const std::string &fileName, EntryData *data);
+		bool ReplaceEntry(uint32_t fileID, EntryData *data);
 
 		std::vector<uint32_t> ListFileIDs() const;
 		std::map<FileType, std::vector<uint32_t>> ListFileIDsByFileType() const;
