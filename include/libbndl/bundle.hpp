@@ -123,14 +123,14 @@ namespace libbndl
 		};
 
 
-		struct EntryDataInfo
+		struct EntryFileBlockData
 		{
 			uint32_t uncompressedSize;
 			uint32_t compressedSize;
 			uint8_t *data;
 		};
 
-		struct Entry
+		struct EntryInfo
 		{
 			// In ResourceStringTable
 			std::string name;
@@ -138,22 +138,29 @@ namespace libbndl
 
 			uint32_t checksum; // Stored in bundle as 64-bit (8-byte)
 
-			struct EntryDataInfo fileBlockDataInfo[3];
-
 			uint32_t pointersOffset;
 			FileType fileType;
 			uint16_t numberOfPointers;
 		};
 
+		struct Entry
+		{
+			EntryInfo info;
+			struct EntryFileBlockData fileBlockData[3];
+		};
+
+
 		struct EntryDataBlock
 		{
-			uint8_t *data;
 			size_t size;
+			uint8_t *data;
 		};
 
 		struct EntryData
 		{
 			EntryDataBlock fileBlockData[3];
+			uint32_t pointersOffset;
+			uint16_t numberOfPointers;
 		};
 
 
@@ -170,7 +177,7 @@ namespace libbndl
 			return m_platform;
 		}
 
-		Entry GetInfo(uint32_t fileID) const;
+		EntryInfo GetInfo(uint32_t fileID) const;
 		EntryData* GetBinary(uint32_t fileID);
 		EntryDataBlock* GetBinary(uint32_t fileID, uint32_t fileBlock);
 

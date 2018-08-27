@@ -84,8 +84,8 @@ bool Bundle::Load(const std::string &name)
 			{
 				const auto fileID = std::stoul(resource.attribute("id").value(), nullptr, 16);
 				Entry e = {};
-				e.name = resource.attribute("name").value();
-				e.typeName = resource.attribute("type").value();
+				e.info.name = resource.attribute("name").value();
+				e.info.typeName = resource.attribute("type").value();
 				m_entries[fileID] = e;
 			}
 		}
@@ -100,22 +100,22 @@ bool Bundle::Load(const std::string &name)
 		auto fileID = static_cast<uint32_t>(reader.Read<uint64_t>());
 		assert(fileID != 0);
 		Entry e = m_entries[fileID];
-		e.checksum = static_cast<uint32_t>(reader.Read<uint64_t>());
+		e.info.checksum = static_cast<uint32_t>(reader.Read<uint64_t>());
 
 		// The uncompressed sizes have a high nibble that varies depending on the file type for whatever reason.
-		e.fileBlockDataInfo[0].uncompressedSize = reader.Read<uint32_t>();
-		e.fileBlockDataInfo[1].uncompressedSize = reader.Read<uint32_t>();
-		e.fileBlockDataInfo[2].uncompressedSize = reader.Read<uint32_t>();
-		e.fileBlockDataInfo[0].compressedSize = reader.Read<uint32_t>();
-		e.fileBlockDataInfo[1].compressedSize = reader.Read<uint32_t>();
-		e.fileBlockDataInfo[2].compressedSize = reader.Read<uint32_t>();
+		e.fileBlockData[0].uncompressedSize = reader.Read<uint32_t>();
+		e.fileBlockData[1].uncompressedSize = reader.Read<uint32_t>();
+		e.fileBlockData[2].uncompressedSize = reader.Read<uint32_t>();
+		e.fileBlockData[0].compressedSize = reader.Read<uint32_t>();
+		e.fileBlockData[1].compressedSize = reader.Read<uint32_t>();
+		e.fileBlockData[2].compressedSize = reader.Read<uint32_t>();
 
 		auto dataReader = reader.Copy();
 		for (auto j = 0; j < 3; j++)
 		{
 			dataReader.Seek(m_fileBlockOffsets[j] + reader.Read<uint32_t>()); // Read offset
 
-			auto &dataInfo = e.fileBlockDataInfo[j];
+			auto &dataInfo = e.fileBlockData[j];
 
 			const auto readSize = (m_flags & Compressed) ? dataInfo.compressedSize : (dataInfo.uncompressedSize & ~(0xFU << 28));
 			if (readSize == 0)
@@ -127,9 +127,9 @@ bool Bundle::Load(const std::string &name)
 			dataInfo.data = dataReader.Read<uint8_t *>(readSize);
 		}
 
-		e.pointersOffset = reader.Read<uint32_t>();
-		e.fileType = reader.Read<FileType>();
-		e.numberOfPointers = reader.Read<uint16_t>();
+		e.info.pointersOffset = reader.Read<uint32_t>();
+		e.info.fileType = reader.Read<FileType>();
+		e.info.numberOfPointers = reader.Read<uint16_t>();
 
 		reader.Seek(2, std::ios::cur); // Padding
 
@@ -179,8 +179,8 @@ void Bundle::Save(const std::string& name)
 			idStream << std::hex << std::setw(8) << std::setfill('0') << entry.first;
 
 			entryChild.append_attribute("id").set_value(idStream.str().c_str());
-			entryChild.append_attribute("type").set_value(entry.second.typeName.c_str());
-			entryChild.append_attribute("name").set_value(entry.second.name.c_str());
+			entryChild.append_attribute("type").set_value(entry.second.info.typeName.c_str());
+			entryChild.append_attribute("name").set_value(entry.second.info.name.c_str());
 		}
 
 		std::stringstream out;
@@ -202,11 +202,11 @@ void Bundle::Save(const std::string& name)
 
 		Entry e = entryIter->second;
 
-		writer.Write<uint64_t>(e.checksum);
+		writer.Write<uint64_t>(e.info.checksum);
 
-		for (auto &dataInfo : e.fileBlockDataInfo)
+		for (auto &dataInfo : e.fileBlockData)
 			writer.Write(dataInfo.uncompressedSize);
-		for (auto &dataInfo : e.fileBlockDataInfo)
+		for (auto &dataInfo : e.fileBlockData)
 			writer.Write(dataInfo.compressedSize);
 		for (auto j = 0; j < 3; j++)
 		{
@@ -214,9 +214,9 @@ void Bundle::Save(const std::string& name)
 			writer.Seek(4, std::ios::cur);
 		}
 
-		writer.Write(e.pointersOffset);
-		writer.Write(e.fileType);
-		writer.Write(e.numberOfPointers);
+		writer.Write(e.info.pointersOffset);
+		writer.Write(e.info.fileType);
+		writer.Write(e.info.numberOfPointers);
 
 		writer.Seek(2, std::ios::cur); // padding
 
@@ -234,7 +234,7 @@ void Bundle::Save(const std::string& name)
 		{
 			Entry e = entryIter->second;
 
-			const auto dataInfo = e.fileBlockDataInfo[i];
+			const auto dataInfo = e.fileBlockData[i];
 			const auto readSize = (m_flags & Compressed) ? dataInfo.compressedSize : (dataInfo.uncompressedSize & ~(0xFU << 28));
 
 			if (readSize > 0)
@@ -270,6 +270,9 @@ Bundle::EntryData* Bundle::GetBinary(uint32_t fileID)
 		delete dataBlock;
 	}
 
+	data->pointersOffset = it->second.info.pointersOffset;
+	data->numberOfPointers = it->second.info.numberOfPointers;
+
 	return data;
 }
 
@@ -284,7 +287,7 @@ Bundle::EntryDataBlock* Bundle::GetBinary(uint32_t fileID, uint32_t fileBlock)
 	const Entry e = it->second;
 
 	const auto dataBlock = new EntryDataBlock;
-	const auto dataInfo = e.fileBlockDataInfo[fileBlock];
+	const auto dataInfo = e.fileBlockData[fileBlock];
 
 	if (dataInfo.data == nullptr)
 	{
@@ -317,13 +320,13 @@ Bundle::EntryDataBlock* Bundle::GetBinary(uint32_t fileID, uint32_t fileBlock)
 	return dataBlock;
 }
 
-Bundle::Entry Bundle::GetInfo(uint32_t fileID) const
+Bundle::EntryInfo Bundle::GetInfo(uint32_t fileID) const
 {
 	const auto it = m_entries.find(fileID);
 	if (it == m_entries.end())
 		return {};
 	
-	return it->second;
+	return it->second.info;
 }
 
 /*void Bundle::AddEntry(uint32_t fileID, EntryData *data)
@@ -346,7 +349,7 @@ std::map<Bundle::FileType, std::vector<uint32_t>> Bundle::ListEntriesByFileType(
 	std::map<FileType, std::vector<uint32_t>> entriesByFileType;
 	for (const auto &e : m_entries)
 	{
-		entriesByFileType[e.second.fileType].push_back(e.first);
+		entriesByFileType[e.second.info.fileType].push_back(e.first);
 	}
 	return entriesByFileType;
 }
