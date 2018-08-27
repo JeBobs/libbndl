@@ -49,10 +49,10 @@ int main(int argc, char** argv)
 			std::cout.fill('-');
 			std::cout << "NAME" << std::setw(70) << "FILE TYPE" << std::endl;
 			std::cout.fill(' ');
-			for (const auto& e : arch.ListEntries())
+			for (const auto &fileID : arch.ListFileIDs())
 			{
-				Bundle::Entry info = arch.GetInfo(e);
-				std::cout<< std::left << std::setw(70) << std::hex << e << std::right << " " << info.fileType << std::dec << std::endl;
+				Bundle::EntryInfo info = arch.GetInfo(fileID);
+				std::cout<< std::left << std::setw(70) << std::hex << fileID << std::right << " " << info.fileType << std::dec << std::endl;
 			}
 		}
 	}
