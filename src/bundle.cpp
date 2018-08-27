@@ -256,6 +256,17 @@ void Bundle::Save(const std::string& name)
 	f.close();
 }
 
+uint32_t Bundle::HashFileName(std::string fileName) const
+{
+	std::transform(fileName.begin(), fileName.end(), fileName.begin(), tolower);
+	return crc32(0, reinterpret_cast<const Bytef *>(fileName.c_str()), fileName.length());
+}
+
+Bundle::EntryData* Bundle::GetBinary(const std::string &fileName)
+{
+	return GetBinary(HashFileName(fileName));
+}
+
 Bundle::EntryData* Bundle::GetBinary(uint32_t fileID)
 {
 	const auto it = m_entries.find(fileID);
@@ -274,6 +285,11 @@ Bundle::EntryData* Bundle::GetBinary(uint32_t fileID)
 	data->numberOfPointers = it->second.info.numberOfPointers;
 
 	return data;
+}
+
+Bundle::EntryDataBlock* Bundle::GetBinary(const std::string &fileName, uint32_t fileBlock)
+{
+	return GetBinary(HashFileName(fileName), fileBlock);
 }
 
 Bundle::EntryDataBlock* Bundle::GetBinary(uint32_t fileID, uint32_t fileBlock)
@@ -320,6 +336,11 @@ Bundle::EntryDataBlock* Bundle::GetBinary(uint32_t fileID, uint32_t fileBlock)
 	return dataBlock;
 }
 
+Bundle::EntryInfo Bundle::GetInfo(const std::string &fileName) const
+{
+	return GetInfo(HashFileName(fileName));
+}
+
 Bundle::EntryInfo Bundle::GetInfo(uint32_t fileID) const
 {
 	const auto it = m_entries.find(fileID);
@@ -334,7 +355,7 @@ Bundle::EntryInfo Bundle::GetInfo(uint32_t fileID) const
 	//
 }*/
 
-std::vector<uint32_t> Bundle::ListEntries() const
+std::vector<uint32_t> Bundle::ListFileIDs() const
 {
 	std::vector<uint32_t> entries;
 	for (const auto &e : m_entries)
@@ -344,7 +365,7 @@ std::vector<uint32_t> Bundle::ListEntries() const
 	return entries;
 }
 
-std::map<Bundle::FileType, std::vector<uint32_t>> Bundle::ListEntriesByFileType() const
+std::map<Bundle::FileType, std::vector<uint32_t>> Bundle::ListFileIDsByFileType() const
 {
 	std::map<FileType, std::vector<uint32_t>> entriesByFileType;
 	for (const auto &e : m_entries)

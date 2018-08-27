@@ -146,7 +146,7 @@ namespace libbndl
 		struct Entry
 		{
 			EntryInfo info;
-			struct EntryFileBlockData fileBlockData[3];
+			EntryFileBlockData fileBlockData[3];
 		};
 
 
@@ -177,15 +177,18 @@ namespace libbndl
 			return m_platform;
 		}
 
+		EntryInfo GetInfo(const std::string &fileName) const;
 		EntryInfo GetInfo(uint32_t fileID) const;
+		EntryData* GetBinary(const std::string &fileName);
 		EntryData* GetBinary(uint32_t fileID);
+		EntryDataBlock* GetBinary(const std::string &fileName, uint32_t fileBlock);
 		EntryDataBlock* GetBinary(uint32_t fileID, uint32_t fileBlock);
 
 		// Add Entry coming soon
 		//void ReplaceEntry(uint32_t fileID, EntryData *data);
 
-		std::vector<uint32_t> ListEntries() const;
-		std::map<FileType, std::vector<uint32_t>> ListEntriesByFileType() const;
+		std::vector<uint32_t> ListFileIDs() const;
+		std::map<FileType, std::vector<uint32_t>> ListFileIDsByFileType() const;
 
 	private:
 		std::mutex					m_mutex;
@@ -197,5 +200,7 @@ namespace libbndl
 		uint32_t					m_idBlockOffset;
 		uint32_t					m_fileBlockOffsets[3];
 		Flags						m_flags;
+
+		uint32_t HashFileName(std::string fileName) const;
 	};
 }
