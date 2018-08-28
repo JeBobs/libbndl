@@ -25,7 +25,8 @@ build_script:
 - cmake --build build --target install
 
 after_build:
-- 7z a libbndl-%ARCHITECTURE%-release.zip install\*
+- cd install
+- 7z a libbndl-%ARCHITECTURE%-release.zip .\*
 
 test: off
 
