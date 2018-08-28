@@ -19,11 +19,7 @@ addons:
     packages:
         - g++-7
         - gcc-7
-        - libpthread-stubs0-dev
-        #- qt5-default
-        #- libqt5opengl5-dev
-        #- qtmultimedia5-dev
-        # Above replaced by below for Beineri PPA
+        - libgl1-mesa-dev
         - qt511base
         - qt511multimedia
 # Install
