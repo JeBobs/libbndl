@@ -31,4 +31,6 @@ install:
 script:
   - mkdir build
   - cd build
-  - cmake .. && make
+  - cmake .. -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=install
+  - make
+  - make install
