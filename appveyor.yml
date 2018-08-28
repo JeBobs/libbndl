@@ -24,8 +24,8 @@ before_build:
 
 
 build_script:
-- cmake --build build-debug --target install-debug
-- cmake --build build-release --target install-release
+- cmake --build build-debug --target install
+- cmake --build build-release --target install
 
 after_build:
 - cd install-debug
