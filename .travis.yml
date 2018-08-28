@@ -1,7 +1,7 @@
 # Cpp language
 language: cpp
 sudo: required
-dist: trusty
+dist: xenial
 
 # Compiler selection
 compiler:
@@ -14,8 +14,8 @@ cache:
 addons:
   apt:
     sources:
-        - ubuntu-toolchain-r-test
-        - sourceline: "ppa:beineri/opt-qt-5.10.1-trusty"
+        - sourceline: "ppa:ubuntu-toolchain-r/test"
+        - sourceline: "ppa:beineri/opt-qt-5.11.1-xenial"
     packages:
         - g++-7
         - gcc-7
@@ -24,12 +24,12 @@ addons:
         #- libqt5opengl5-dev
         #- qtmultimedia5-dev
         # Above replaced by below for Beineri PPA
-        - qt510base
-        - qt510multimedia
+        - qt511base
+        - qt511multimedia
 # Install
 install:
   - if [ "$TRAVIS_OS_NAME" = "linux" -a "$CXX" = "g++" ]; then export CXX="g++-7" CC="gcc-7"; fi
-  - source /opt/qt510/bin/qt510-env.sh # Needed with Beineri PPA
+  - source /opt/qt511/bin/qt511-env.sh # Needed with Beineri PPA
 
 # Build steps
 script:
