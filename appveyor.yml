@@ -19,16 +19,24 @@ install:
 - git submodule update --init --recursive
 
 before_build:
-- cmake -H. -Bbuild -G Ninja -DCMAKE_PREFIX_PATH="%QT5_DIR%" -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=install -DCMAKE_MAKE_PROGRAM="C:\\Program Files (x86)\\Microsoft Visual Studio\\2017\\Community\\Common7\\IDE\\CommonExtensions\\Microsoft\\CMake\\Ninja\\ninja.exe"
+- cmake -H. -Bbuild-debug -G Ninja -DCMAKE_PREFIX_PATH="%QT5_DIR%" -DCMAKE_BUILD_TYPE=Debug -DCMAKE_INSTALL_PREFIX=install-debug -DCMAKE_MAKE_PROGRAM="C:\\Program Files (x86)\\Microsoft Visual Studio\\2017\\Community\\Common7\\IDE\\CommonExtensions\\Microsoft\\CMake\\Ninja\\ninja.exe"
+- cmake -H. -Bbuild-release -G Ninja -DCMAKE_PREFIX_PATH="%QT5_DIR%" -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=install-release -DCMAKE_MAKE_PROGRAM="C:\\Program Files (x86)\\Microsoft Visual Studio\\2017\\Community\\Common7\\IDE\\CommonExtensions\\Microsoft\\CMake\\Ninja\\ninja.exe"
+
 
 build_script:
-- cmake --build build --target install
+- cmake --build build-debug --target install-debug
+- cmake --build build-release --target install-release
 
 after_build:
-- cd install
+- cd install-debug
+- 7z a libbndl-%ARCHITECTURE%-debug.zip .\*
+- cd ..\install-release
 - 7z a libbndl-%ARCHITECTURE%-release.zip .\*
 
 test: off
 
 artifacts:
-- path: install\libbndl-%ARCHITECTURE%-release.zip
+- path: install-release\libbndl-%ARCHITECTURE%-release.zip
+  name: libbndl-%ARCHITECTURE%-release.zip
+- path: install-debug\libbndl-%ARCHITECTURE%-debug.zip
+  name: libbndl-%ARCHITECTURE%-debug.zip
