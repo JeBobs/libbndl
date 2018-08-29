@@ -48,6 +48,8 @@ endif()
 
 set_property(TARGET libbndl PROPERTY POSITION_INDEPENDENT_CODE ON)
 
-install(TARGETS libbndl DESTINATION lib)
+install(TARGETS libbndl RUNTIME DESTINATION bin
+						LIBRARY DESTINATION lib
+						ARCHIVE DESTINATION lib)
 install(FILES ${PUBLIC_HEADERS} DESTINATION include/libbndl)
 install(FILES ${LIBBNDL_ROOT}/LICENSE.md DESTINATION share/libbndl RENAME copyright)
