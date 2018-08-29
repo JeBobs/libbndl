@@ -1,6 +1,7 @@
 MIT License
 
-Copyright (c) 2017 Stephan Vedder
+Library copyright (c) 2018 Bo Anderson
+Tools copyright (c) 2017 Stephan Vedder
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
