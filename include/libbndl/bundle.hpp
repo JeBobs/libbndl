@@ -1,4 +1,5 @@
 #pragma once
+#include "libbndl_export.h"
 #include <string>
 #include <map>
 #include <vector>
@@ -164,33 +165,33 @@ namespace libbndl
 		};
 
 
-		bool Load(const std::string &name);
-		void Save(const std::string &name);
+		LIBBNDL_EXPORT bool Load(const std::string &name);
+		LIBBNDL_EXPORT void Save(const std::string &name);
 
-		Version GetVersion() const
+		LIBBNDL_EXPORT Version GetVersion() const
 		{
 			return m_version;
 		}
 
-		Platform GetPlatform() const
+		LIBBNDL_EXPORT Platform GetPlatform() const
 		{
 			return m_platform;
 		}
 
-		EntryInfo GetInfo(const std::string &fileName) const;
-		EntryInfo GetInfo(uint32_t fileID) const;
-		EntryData* GetBinary(const std::string &fileName);
-		EntryData* GetBinary(uint32_t fileID);
-		EntryDataBlock* GetBinary(const std::string &fileName, uint32_t fileBlock);
-		EntryDataBlock* GetBinary(uint32_t fileID, uint32_t fileBlock);
+		LIBBNDL_EXPORT EntryInfo GetInfo(const std::string &fileName) const;
+		LIBBNDL_EXPORT EntryInfo GetInfo(uint32_t fileID) const;
+		LIBBNDL_EXPORT EntryData* GetBinary(const std::string &fileName);
+		LIBBNDL_EXPORT EntryData* GetBinary(uint32_t fileID);
+		LIBBNDL_EXPORT EntryDataBlock* GetBinary(const std::string &fileName, uint32_t fileBlock);
+		LIBBNDL_EXPORT EntryDataBlock* GetBinary(uint32_t fileID, uint32_t fileBlock);
 
 		// Add Entry coming soon
 
-		bool ReplaceEntry(const std::string &fileName, EntryData *data);
-		bool ReplaceEntry(uint32_t fileID, EntryData *data);
+		LIBBNDL_EXPORT bool ReplaceEntry(const std::string &fileName, EntryData *data);
+		LIBBNDL_EXPORT bool ReplaceEntry(uint32_t fileID, EntryData *data);
 
-		std::vector<uint32_t> ListFileIDs() const;
-		std::map<FileType, std::vector<uint32_t>> ListFileIDsByFileType() const;
+		LIBBNDL_EXPORT std::vector<uint32_t> ListFileIDs() const;
+		LIBBNDL_EXPORT std::map<FileType, std::vector<uint32_t>> ListFileIDsByFileType() const;
 
 	private:
 		std::mutex					m_mutex;

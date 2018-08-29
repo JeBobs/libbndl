@@ -16,7 +16,8 @@ add_custom_command( TARGET bndl_edit POST_BUILD
                     COMMAND ${CMAKE_COMMAND} -E copy_directory
 					${CMAKE_CURRENT_SOURCE_DIR}/../files $<TARGET_FILE_DIR:bndl_edit>
 					
-					COMMAND ${CMAKE_COMMAND} -E copy_if_different $<TARGET_FILE:Qt5::Core>
+					COMMAND ${CMAKE_COMMAND} -E copy_if_different $<TARGET_FILE:libbndl>
+																  $<TARGET_FILE:Qt5::Core>
 																  $<TARGET_FILE:Qt5::Gui>
 																  $<TARGET_FILE:Qt5::Widgets>
 																  $<TARGET_FILE:Qt5::Multimedia>
