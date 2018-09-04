@@ -5,8 +5,5 @@ target_include_directories(bndl_util PRIVATE ${LIBBNDL_ROOT}/deps/cxxopts/includ
 
 set_property(TARGET bndl_util PROPERTY CXX_STANDARD 14)
 
-add_custom_command( TARGET bndl_util POST_BUILD
-                    COMMAND ${CMAKE_COMMAND} -E copy_directory
-                    ${CMAKE_CURRENT_SOURCE_DIR}/../files $<TARGET_FILE_DIR:bndl_util>
-					
-					COMMAND ${CMAKE_COMMAND} -E copy_if_different $<TARGET_FILE:libbndl> $<TARGET_FILE_DIR:bndl_util>)
+add_custom_command(TARGET bndl_util POST_BUILD
+                   COMMAND ${CMAKE_COMMAND} -E copy_if_different $<TARGET_FILE:libbndl> $<TARGET_FILE_DIR:bndl_util>)

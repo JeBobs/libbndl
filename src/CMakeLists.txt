@@ -24,6 +24,7 @@ add_subdirectory(${LIBBNDL_ROOT}/deps/libbinaryio ${CMAKE_CURRENT_BINARY_DIR}/li
 add_subdirectory(${LIBBNDL_ROOT}/deps/zlib ${CMAKE_CURRENT_BINARY_DIR}/zlib_build EXCLUDE_FROM_ALL)
 add_subdirectory(${LIBBNDL_ROOT}/deps/pugixml ${CMAKE_CURRENT_BINARY_DIR}/pugixml_build EXCLUDE_FROM_ALL)
 
+set_target_properties(zlibstatic PROPERTIES POSITION_INDEPENDENT_CODE ON)
 add_dependencies(libbndl zlibstatic)
 target_link_libraries(libbndl libbinaryio zlibstatic)
 
@@ -43,7 +44,7 @@ generate_export_header(libbndl)
 target_include_directories(libbndl PUBLIC ${LIBBNDL_ROOT}/include ${CMAKE_CURRENT_BINARY_DIR})
 
 if(MSVC)
-	target_compile_options(${PROJECT_NAME} PUBLIC "/permissive-")
+	target_compile_options(libbndl PUBLIC "/permissive-")
 endif()
 
 set_property(TARGET libbndl PROPERTY POSITION_INDEPENDENT_CODE ON)
@@ -51,7 +52,7 @@ set_property(TARGET libbndl PROPERTY POSITION_INDEPENDENT_CODE ON)
 install(TARGETS libbndl RUNTIME DESTINATION bin
 						LIBRARY DESTINATION lib
 						ARCHIVE DESTINATION lib)
-if(CMAKE_CXX_LINKER_SUPPORTS_PDB)
+if(CMAKE_CXX_LINKER_SUPPORTS_PDB AND NOT LIBBNDL_BUILD_STATIC)
 	install(FILES $<TARGET_PDB_FILE:libbndl> DESTINATION bin OPTIONAL)
 endif()
 install(FILES ${PUBLIC_HEADERS} ${CMAKE_CURRENT_BINARY_DIR}/libbndl_export.h DESTINATION include/libbndl)
