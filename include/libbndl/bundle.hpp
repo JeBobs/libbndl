@@ -55,9 +55,9 @@ namespace libbndl
 			Font = 0x21,
 			LuaCode = 0x22,
 			InstanceList = 0x23,
-			CollisionMeshData = 0x24,
+			CollisionMeshData = 0x24, // formerly ClusteredMesh
 			IDList = 0x25,
-			ClusteredMesh = 0x26, // removed
+			InstanceCollisionList = 0x26, // removed
 			Language = 0x27,
 			SatNavTile = 0x28,
 			SatNavTileDirectory = 0x29,
