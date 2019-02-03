@@ -26,10 +26,9 @@ namespace libbndl
 		enum Flags: uint32_t
 		{
 			Compressed = 1,
-			UnknownFlag1 = 2, // Always set?
-			UnknownFlag2 = 4, // Always set?
+			UnusedFlag1 = 2, // Always set.
+			UnusedFlag2 = 4, // Always set.
 			HasResourceStringTable = 8
-			// There may be more but they are always 0 it seems.
 		};
 
 		enum FileType: uint32_t
@@ -38,15 +37,16 @@ namespace libbndl
 			Material = 0x01,
 			TextFile = 0x03,
 			VertexDesc = 0x0A,
-			Type0B = 0x0B, // unknown
+			MaterialCRC32 = 0x0B, // 2006
 			Renderable = 0x0C,
-			Type0D = 0x0D, // unknown
+			MaterialTechnique = 0x0D, // last-gen console
 			TextureState = 0x0E,
 			MaterialState = 0x0F,
 			ShaderProgramBuffer = 0x12,
 			ShaderParameter = 0x14,
 			Debug = 0x16,
 			KdTree = 0x17,
+			VoiceHierarchy = 0x18, // removed
 			Snr = 0x19,
 			AttribSysSchema = 0x1B,
 			AttribSysVault = 0x1C,
@@ -57,6 +57,7 @@ namespace libbndl
 			InstanceList = 0x23,
 			CollisionMeshData = 0x24,
 			IDList = 0x25,
+			ClusteredMesh = 0x26, // removed
 			Language = 0x27,
 			SatNavTile = 0x28,
 			SatNavTileDirectory = 0x29,

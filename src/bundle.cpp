@@ -54,10 +54,7 @@ bool Bundle::Load(const std::string &name)
 	if (bundleVersion != 2)
 		return false;
 
-	const auto headerLength = reader.Read<uint32_t>();
-	// Another sanity check.
-	if (headerLength != 48)
-		return false;
+	const auto rstOffset = reader.Read<uint32_t>();
 
 	m_numEntries = reader.Read<uint32_t>();
 
@@ -69,12 +66,13 @@ bool Bundle::Load(const std::string &name)
 	m_flags = reader.Read<Flags>();
 
 	// Last 8 bytes are padding.
-	reader.Seek(8, std::ios::cur);
 
 
 	m_entries.clear();
 	if (m_flags & HasResourceStringTable)
 	{
+		reader.Seek(rstOffset, std::ios::beg);
+
 		const auto rstXML = reader.ReadString();
 
 		pugi::xml_document doc;
@@ -150,7 +148,9 @@ void Bundle::Save(const std::string& name)
 	writer.Write("bnd2", 4);
 	writer.Write<uint32_t>(2); // Bundle version
 	writer.Write(PC); // Only PC writing supported for now.
-	writer.Write(48); // Header length
+
+	auto rstPointerPos = writer.GetOffset();
+	writer.Seek(4, std::ios::cur); // write later
 
 	writer.Write(m_numEntries);
 
@@ -165,10 +165,11 @@ void Bundle::Save(const std::string& name)
 
 	writer.Write(m_flags);
 
-	writer.Seek(8, std::ios::cur); // padding
+	writer.Align(16);
 
 
 	// RESOURCE STRING TABLE
+	writer.VisitAndWrite<uint32_t>(rstPointerPos, writer.GetOffset());
 	if (m_flags & HasResourceStringTable)
 	{
 		pugi::xml_document doc;
@@ -410,8 +411,8 @@ bool Bundle::ReplaceEntry(uint32_t fileID, EntryData *data)
 			outDataInfo.compressedSize = 0;
 		}
 
-		const auto highNibble = outDataInfo.uncompressedSize & (0xFU << 28); // TODO: how is this calculated?
-		outDataInfo.uncompressedSize = static_cast<uint32_t>(inDataInfo.size) | highNibble;
+		const auto memoryAlignment = outDataInfo.uncompressedSize & (0xFU << 28); // TODO
+		outDataInfo.uncompressedSize = static_cast<uint32_t>(inDataInfo.size) | memoryAlignment;
 		outDataInfo.data = buffer;
 	}
 
