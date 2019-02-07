@@ -25,8 +25,8 @@ bool Bundle::Load(const std::string &name)
 
 	const auto fileSize = m_stream.tellg();
 	m_stream.seekg(0, std::ios::beg);
-	auto *buffer = new uint8_t[fileSize];
-	m_stream.read(reinterpret_cast<char *>(buffer), fileSize);
+	const auto &buffer = std::make_shared<std::vector<uint8_t>>(fileSize);
+	m_stream.read(reinterpret_cast<char *>(buffer->data()), fileSize);
 	m_stream.close();
 	auto reader = binaryio::BinaryReader(buffer);
 
