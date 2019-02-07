@@ -8,6 +8,7 @@
 #include <pugixml.hpp>
 #include <regex>
 #include <iomanip>
+#include <array>
 
 using namespace libbndl;
 
@@ -197,7 +198,7 @@ void Bundle::Save(const std::string& name)
 
 	// ID BLOCK
 	writer.VisitAndWrite<uint32_t>(idBlockPointerPos, writer.GetOffset());
-	auto entryDataPointerPos = std::vector<off_t[3]>(m_numEntries);
+	auto entryDataPointerPos = std::vector<std::array<off_t, 3>>(m_numEntries);
 	auto entryIter = m_entries.begin();
 	for (auto i = 0U; i < m_numEntries; i++)
 	{
