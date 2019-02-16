@@ -85,7 +85,7 @@ bool Bundle::Load(const std::string &name)
 				Entry e = {};
 				e.info.name = resource.attribute("name").value();
 				e.info.typeName = resource.attribute("type").value();
-				m_entries[fileID] = e;
+				m_entries[fileID] = std::move(e);
 			}
 		}
 	}
@@ -98,7 +98,7 @@ bool Bundle::Load(const std::string &name)
 		// These are stored in bundle as 64-bit (8-byte), but are really 32-bit.
 		auto fileID = static_cast<uint32_t>(reader.Read<uint64_t>());
 		assert(fileID != 0);
-		Entry e = m_entries[fileID];
+		auto &e = m_entries[fileID];
 		e.info.checksum = static_cast<uint32_t>(reader.Read<uint64_t>());
 
 		// The uncompressed sizes have a high nibble that varies depending on the file type for whatever reason.
@@ -123,7 +123,8 @@ bool Bundle::Load(const std::string &name)
 				continue;
 			}
 
-			dataInfo.data = dataReader.Read<uint8_t *>(readSize);
+			const auto readBuffer = dataReader.Read<uint8_t *>(readSize);
+			dataInfo.data = std::make_unique<std::vector<uint8_t>>(readBuffer, readBuffer + readSize);
 		}
 
 		e.info.pointersOffset = reader.Read<uint32_t>();
@@ -131,8 +132,6 @@ bool Bundle::Load(const std::string &name)
 		e.info.numberOfPointers = reader.Read<uint16_t>();
 
 		reader.Seek(2, std::ios::cur); // Padding
-
-		m_entries[fileID] = e;
 	}
 
 	return true;
@@ -204,7 +203,7 @@ void Bundle::Save(const std::string& name)
 	{
 		writer.Write<uint64_t>(entryIter->first);
 
-		Entry e = entryIter->second;
+		const auto &e = entryIter->second;
 
 		writer.Write<uint64_t>(e.info.checksum);
 
@@ -236,15 +235,15 @@ void Bundle::Save(const std::string& name)
 		entryIter = m_entries.begin();
 		for (auto j = 0U; j < m_numEntries; j++)
 		{
-			Entry e = entryIter->second;
+			const auto &e = entryIter->second;
 
-			const auto dataInfo = e.fileBlockData[i];
+			const auto &dataInfo = e.fileBlockData[i];
 			const auto readSize = (m_flags & Compressed) ? dataInfo.compressedSize : (dataInfo.uncompressedSize & ~(0xFU << 28));
 
 			if (readSize > 0)
 			{
 				writer.VisitAndWrite<uint32_t>(entryDataPointerPos[j][i], writer.GetOffset() - blockStart);
-				writer.Write(dataInfo.data, readSize);
+				writer.Write(dataInfo.data->data(), readSize);
 				writer.Align((i != 0 && j != m_numEntries - 1) ? 0x80 : 16);
 			}
 
@@ -266,78 +265,66 @@ uint32_t Bundle::HashFileName(std::string fileName) const
 	return crc32_z(0, reinterpret_cast<const Bytef *>(fileName.c_str()), fileName.length());
 }
 
-Bundle::EntryData* Bundle::GetBinary(const std::string &fileName)
+Bundle::EntryData Bundle::GetBinary(const std::string &fileName)
 {
 	return GetBinary(HashFileName(fileName));
 }
 
-Bundle::EntryData* Bundle::GetBinary(uint32_t fileID)
+Bundle::EntryData Bundle::GetBinary(uint32_t fileID)
 {
 	const auto it = m_entries.find(fileID);
 	if (it == m_entries.end())
-		return nullptr;
+		return {};
 
-	const auto data = new EntryData;
+	EntryData data;
 	for (auto i = 0; i < 3; i++)
-	{
-		EntryDataBlock *dataBlock = GetBinary(fileID, i);
-		data->fileBlockData[i] = *dataBlock;
-		delete dataBlock;
-	}
+		data.fileBlockData[i] = GetBinary(fileID, i);
 
-	data->pointersOffset = it->second.info.pointersOffset;
-	data->numberOfPointers = it->second.info.numberOfPointers;
+	data.pointersOffset = it->second.info.pointersOffset;
+	data.numberOfPointers = it->second.info.numberOfPointers;
 
 	return data;
 }
 
-Bundle::EntryDataBlock* Bundle::GetBinary(const std::string &fileName, uint32_t fileBlock)
+std::unique_ptr<std::vector<uint8_t>> Bundle::GetBinary(const std::string &fileName, uint32_t fileBlock)
 {
 	return GetBinary(HashFileName(fileName), fileBlock);
 }
 
-Bundle::EntryDataBlock* Bundle::GetBinary(uint32_t fileID, uint32_t fileBlock)
+std::unique_ptr<std::vector<uint8_t>> Bundle::GetBinary(uint32_t fileID, uint32_t fileBlock)
 {
 	const auto it = m_entries.find(fileID);
 	if (it == m_entries.end())
-		return nullptr;
+		return {};
 
 	Lock mutexLock(m_mutex);
 
-	const Entry e = it->second;
+	const auto &e = it->second;
 
-	const auto dataBlock = new EntryDataBlock;
-	const auto dataInfo = e.fileBlockData[fileBlock];
+	const auto &dataInfo = e.fileBlockData[fileBlock];
 
 	if (dataInfo.data == nullptr)
-	{
-		dataBlock->data = nullptr;
-		dataBlock->size = 0;
-		return dataBlock;
-	}
+		return {};
 
-	const auto buffer = dataInfo.data;
+	const auto &buffer = dataInfo.data;
 	const auto uncompressedSize = dataInfo.uncompressedSize & ~(0xFU << 28);
 
-	auto *uncompressedBuffer = new uint8_t[uncompressedSize];
+	auto uncompressedBuffer = std::make_unique<std::vector<uint8_t>>(uncompressedSize);
 
 	if (m_flags & Compressed)
 	{
 		uLongf uncompressedSizeLong = uncompressedSize;
-		const auto ret = uncompress(uncompressedBuffer, &uncompressedSizeLong, buffer, static_cast<uLong>(dataInfo.compressedSize));
+		const auto ret = uncompress(uncompressedBuffer->data(), &uncompressedSizeLong, buffer->data(), static_cast<uLong>(dataInfo.compressedSize));
 
 		assert(ret == Z_OK);
 		assert(uncompressedSize == uncompressedSizeLong);
 	}
 	else
 	{
-		std::memcpy(uncompressedBuffer, buffer, uncompressedSize);
+		std::memcpy(uncompressedBuffer->data(), buffer->data(), uncompressedSize);
 	}
 
-	dataBlock->data = uncompressedBuffer;
-	dataBlock->size = uncompressedSize;
-
-	return dataBlock;
+	return std::move(uncompressedBuffer);
 }
 
 Bundle::EntryInfo Bundle::GetInfo(const std::string &fileName) const
@@ -354,12 +341,12 @@ Bundle::EntryInfo Bundle::GetInfo(uint32_t fileID) const
 	return it->second.info;
 }
 
-bool Bundle::ReplaceEntry(const std::string &fileName, EntryData *data)
+bool Bundle::ReplaceEntry(const std::string &fileName, const EntryData &data)
 {
 	return ReplaceEntry(HashFileName(fileName), data);
 }
 
-bool Bundle::ReplaceEntry(uint32_t fileID, EntryData *data)
+bool Bundle::ReplaceEntry(uint32_t fileID, const EntryData &data)
 {
 	const auto it = m_entries.find(fileID);
 	if (it == m_entries.end())
@@ -371,10 +358,10 @@ bool Bundle::ReplaceEntry(uint32_t fileID, EntryData *data)
 
 	for (auto i = 0; i < 3; i++)
 	{
-		const auto inDataInfo = data->fileBlockData[i];
+		const auto &inDataInfo = data.fileBlockData[i];
 		auto &outDataInfo = e.fileBlockData[i];
 
-		if (inDataInfo.size == 0)
+		if (inDataInfo == nullptr || inDataInfo->empty())
 		{
 			outDataInfo.data = nullptr;
 			outDataInfo.uncompressedSize = 0;
@@ -382,43 +369,39 @@ bool Bundle::ReplaceEntry(uint32_t fileID, EntryData *data)
 			continue;
 		}
 
-		uint8_t *buffer;
+		std::unique_ptr<std::vector<uint8_t>> buffer;
 
 		if (m_flags & Compressed)
 		{
-			const auto compBufferSize = compressBound(static_cast<uLong>(inDataInfo.size));
-			const auto compBuffer = new uint8_t[compBufferSize];
+			const auto compBufferSize = compressBound(static_cast<uLong>(inDataInfo->size()));
+			buffer = std::make_unique<std::vector<uint8_t>>(compBufferSize);
 			uLongf actualSize = compBufferSize;
-			const auto ret = compress2(compBuffer, &actualSize, inDataInfo.data, static_cast<uLong>(inDataInfo.size), Z_BEST_COMPRESSION);
+			const auto ret = compress2(buffer->data(), &actualSize, inDataInfo->data(), static_cast<uLong>(inDataInfo->size()), Z_BEST_COMPRESSION);
 
 			if (ret != Z_OK)
 			{
-				delete[] compBuffer;
 				assert(0);
 				return false;
 			}
 
-			buffer = new uint8_t[actualSize];
-			std::memcpy(buffer, compBuffer, actualSize);
-			delete[] compBuffer;
-
+			buffer->shrink_to_fit();
 			outDataInfo.compressedSize = actualSize;
 		}
 		else
 		{
-			buffer = new uint8_t[inDataInfo.size];
-			std::memcpy(buffer, inDataInfo.data, inDataInfo.size);
+			buffer = std::make_unique<std::vector<uint8_t>>(inDataInfo->size());
+			std::memcpy(buffer->data(), inDataInfo->data(), inDataInfo->size());
 
 			outDataInfo.compressedSize = 0;
 		}
 
 		const auto memoryAlignment = outDataInfo.uncompressedSize & (0xFU << 28); // TODO
-		outDataInfo.uncompressedSize = static_cast<uint32_t>(inDataInfo.size) | memoryAlignment;
-		outDataInfo.data = buffer;
+		outDataInfo.uncompressedSize = static_cast<uint32_t>(inDataInfo->size()) | memoryAlignment;
+		outDataInfo.data = std::move(buffer);
 	}
 
-	e.info.pointersOffset = data->pointersOffset;
-	e.info.numberOfPointers = data->numberOfPointers;
+	e.info.pointersOffset = data.pointersOffset;
+	e.info.numberOfPointers = data.numberOfPointers;
 
 	return true;
 }

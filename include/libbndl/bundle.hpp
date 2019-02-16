@@ -4,6 +4,7 @@
 #include <map>
 #include <vector>
 #include <mutex>
+#include <memory>
 
 namespace libbndl
 {
@@ -129,7 +130,7 @@ namespace libbndl
 		{
 			uint32_t uncompressedSize;
 			uint32_t compressedSize;
-			uint8_t *data;
+			std::unique_ptr<std::vector<uint8_t>> data;
 		};
 
 		struct EntryInfo
@@ -152,15 +153,9 @@ namespace libbndl
 		};
 
 
-		struct EntryDataBlock
-		{
-			size_t size;
-			uint8_t *data;
-		};
-
 		struct EntryData
 		{
-			EntryDataBlock fileBlockData[3];
+			std::unique_ptr<std::vector<uint8_t>> fileBlockData[3];
 			uint32_t pointersOffset;
 			uint16_t numberOfPointers;
 		};
@@ -181,15 +176,15 @@ namespace libbndl
 
 		LIBBNDL_EXPORT EntryInfo GetInfo(const std::string &fileName) const;
 		LIBBNDL_EXPORT EntryInfo GetInfo(uint32_t fileID) const;
-		LIBBNDL_EXPORT EntryData* GetBinary(const std::string &fileName);
-		LIBBNDL_EXPORT EntryData* GetBinary(uint32_t fileID);
-		LIBBNDL_EXPORT EntryDataBlock* GetBinary(const std::string &fileName, uint32_t fileBlock);
-		LIBBNDL_EXPORT EntryDataBlock* GetBinary(uint32_t fileID, uint32_t fileBlock);
+		LIBBNDL_EXPORT EntryData GetBinary(const std::string &fileName);
+		LIBBNDL_EXPORT EntryData GetBinary(uint32_t fileID);
+		LIBBNDL_EXPORT std::unique_ptr<std::vector<uint8_t>> GetBinary(const std::string &fileName, uint32_t fileBlock);
+		LIBBNDL_EXPORT std::unique_ptr<std::vector<uint8_t>> GetBinary(uint32_t fileID, uint32_t fileBlock);
 
 		// Add Entry coming soon
 
-		LIBBNDL_EXPORT bool ReplaceEntry(const std::string &fileName, EntryData *data);
-		LIBBNDL_EXPORT bool ReplaceEntry(uint32_t fileID, EntryData *data);
+		LIBBNDL_EXPORT bool ReplaceEntry(const std::string &fileName, const EntryData &data);
+		LIBBNDL_EXPORT bool ReplaceEntry(uint32_t fileID, const EntryData &data);
 
 		LIBBNDL_EXPORT std::vector<uint32_t> ListFileIDs() const;
 		LIBBNDL_EXPORT std::map<FileType, std::vector<uint32_t>> ListFileIDsByFileType() const;
