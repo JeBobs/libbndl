@@ -12,6 +12,9 @@
 
 using namespace libbndl;
 
+#ifndef __has_builtin
+#	define __has_builtin(x) 0
+#endif
 inline unsigned long BitScanReverse(unsigned long input)
 {
 	unsigned long result;
