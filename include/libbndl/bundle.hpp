@@ -6,6 +6,12 @@
 #include <mutex>
 #include <memory>
 
+namespace binaryio
+{
+	class BinaryReader;
+	class BinaryWriter;
+}
+
 namespace libbndl
 {
 	class Bundle
@@ -129,6 +135,7 @@ namespace libbndl
 		struct EntryFileBlockData
 		{
 			uint32_t uncompressedSize;
+			uint32_t uncompressedAlignment; // default depending on file type
 			uint32_t compressedSize;
 			std::unique_ptr<std::vector<uint8_t>> data;
 		};
@@ -141,23 +148,29 @@ namespace libbndl
 
 			uint32_t checksum; // Stored in bundle as 64-bit (8-byte)
 
-			uint32_t pointersOffset;
+			uint32_t dependenciesOffset;
 			FileType fileType;
-			uint16_t numberOfPointers;
+			uint16_t numberOfDependencies;
+		};
+
+		struct Dependency
+		{
+			uint32_t fileID;
+			uint32_t internalOffset;
 		};
 
 		struct Entry
 		{
 			EntryInfo info;
 			EntryFileBlockData fileBlockData[3];
+			std::vector<Dependency> dependencies;
 		};
 
 
 		struct EntryData
 		{
 			std::unique_ptr<std::vector<uint8_t>> fileBlockData[3];
-			uint32_t pointersOffset;
-			uint16_t numberOfPointers;
+			std::vector<Dependency> dependencies;
 		};
 
 
@@ -176,10 +189,10 @@ namespace libbndl
 
 		LIBBNDL_EXPORT EntryInfo GetInfo(const std::string &fileName) const;
 		LIBBNDL_EXPORT EntryInfo GetInfo(uint32_t fileID) const;
-		LIBBNDL_EXPORT EntryData GetBinary(const std::string &fileName);
-		LIBBNDL_EXPORT EntryData GetBinary(uint32_t fileID);
-		LIBBNDL_EXPORT std::unique_ptr<std::vector<uint8_t>> GetBinary(const std::string &fileName, uint32_t fileBlock);
-		LIBBNDL_EXPORT std::unique_ptr<std::vector<uint8_t>> GetBinary(uint32_t fileID, uint32_t fileBlock);
+		LIBBNDL_EXPORT EntryData GetData(const std::string &fileName) const;
+		LIBBNDL_EXPORT EntryData GetData(uint32_t fileID) const;
+		LIBBNDL_EXPORT std::unique_ptr<std::vector<uint8_t>> GetBinary(const std::string &fileName, uint32_t fileBlock) const;
+		LIBBNDL_EXPORT std::unique_ptr<std::vector<uint8_t>> GetBinary(uint32_t fileID, uint32_t fileBlock) const;
 
 		// Add Entry coming soon
 
@@ -192,14 +205,19 @@ namespace libbndl
 	private:
 		std::mutex					m_mutex;
 		std::map<uint32_t, Entry>	m_entries;
+		std::map<uint32_t, std::vector<Dependency>> m_dependencies; // not used in bnd2 due to lazy reading.
 
 		Version						m_version;
 		Platform					m_platform;
 		uint32_t					m_numEntries;
-		uint32_t					m_idBlockOffset;
 		uint32_t					m_fileBlockOffsets[3];
 		Flags						m_flags;
 
+		bool LoadBND2(binaryio::BinaryReader &reader);
+		bool LoadBNDL(binaryio::BinaryReader &reader);
 		uint32_t HashFileName(std::string fileName) const;
+
+		static Dependency ReadDependency(binaryio::BinaryReader &reader);
+		static void WriteDependency(binaryio::BinaryWriter &writer, const Dependency &dependency);
 	};
 }

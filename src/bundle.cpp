@@ -12,23 +12,38 @@
 
 using namespace libbndl;
 
+inline unsigned long BitScanReverse(unsigned long input)
+{
+	unsigned long result;
+
+#if defined(_MSC_VER)
+	_BitScanReverse(&result, input);
+#elif __has_builtin(__builtin_clzl) || defined(__GNUC__)
+	result = static_cast<unsigned long>(31 - __builtin_clzl(input));
+#else
+#	error "Unsupported compiler."
+#endif
+
+	return result;
+}
+
 bool Bundle::Load(const std::string &name)
 {
-	std::ifstream m_stream;
+	std::ifstream stream;
 
-	m_stream.open(name, std::ios::in | std::ios::binary | std::ios::ate);
+	stream.open(name, std::ios::in | std::ios::binary | std::ios::ate);
 
 	// Check if archive exists
-	if (m_stream.fail())
+	if (stream.fail())
 		return false;
 
 	Lock mutexLock(m_mutex);
 
-	const auto fileSize = m_stream.tellg();
-	m_stream.seekg(0, std::ios::beg);
+	const auto fileSize = stream.tellg();
+	stream.seekg(0, std::ios::beg);
 	const auto &buffer = std::make_shared<std::vector<uint8_t>>(fileSize);
-	m_stream.read(reinterpret_cast<char *>(buffer->data()), fileSize);
-	m_stream.close();
+	stream.read(reinterpret_cast<char *>(buffer->data()), fileSize);
+	stream.close();
 	auto reader = binaryio::BinaryReader(buffer);
 
 	// Check if it's a BNDL archive
@@ -40,10 +55,11 @@ bool Bundle::Load(const std::string &name)
 	else
 		return false;
 
-	// Only supporting BND2 atm.
-	if (m_version == BNDL)
-		return false;
+	return (m_version == BNDL) ? LoadBNDL(reader): LoadBND2(reader);
+}
 
+bool Bundle::LoadBND2(binaryio::BinaryReader &reader)
+{
 	auto bundleVersion = reader.Read<uint32_t>();
 
 	m_platform = reader.Read<Platform>();
@@ -59,7 +75,7 @@ bool Bundle::Load(const std::string &name)
 
 	m_numEntries = reader.Read<uint32_t>();
 
-	m_idBlockOffset = reader.Read<uint32_t>();
+	const auto idBlockOffset = reader.Read<uint32_t>();
 	m_fileBlockOffsets[0] = reader.Read<uint32_t>();
 	m_fileBlockOffsets[1] = reader.Read<uint32_t>();
 	m_fileBlockOffsets[2] = reader.Read<uint32_t>();
@@ -91,7 +107,7 @@ bool Bundle::Load(const std::string &name)
 	}
 
 
-	reader.Seek(m_idBlockOffset);
+	reader.Seek(idBlockOffset);
 
 	for (auto i = 0U; i < m_numEntries; i++)
 	{
@@ -101,10 +117,17 @@ bool Bundle::Load(const std::string &name)
 		auto &e = m_entries[fileID];
 		e.info.checksum = static_cast<uint32_t>(reader.Read<uint64_t>());
 
-		// The uncompressed sizes have a high nibble that varies depending on the file type for whatever reason.
-		e.fileBlockData[0].uncompressedSize = reader.Read<uint32_t>();
-		e.fileBlockData[1].uncompressedSize = reader.Read<uint32_t>();
-		e.fileBlockData[2].uncompressedSize = reader.Read<uint32_t>();
+		// The uncompressed sizes have a high nibble that varies depending on the file type.
+		const auto uncompSize0 = reader.Read<uint32_t>();
+		e.fileBlockData[0].uncompressedSize = uncompSize0 & ~(0xFU << 28);
+		e.fileBlockData[0].uncompressedAlignment = 1 << (uncompSize0 >> 28);
+		const auto uncompSize1 = reader.Read<uint32_t>();
+		e.fileBlockData[1].uncompressedSize = uncompSize1 & ~(0xFU << 28);
+		e.fileBlockData[1].uncompressedAlignment = 1 << (uncompSize1 >> 28);
+		const auto uncompSize2 = reader.Read<uint32_t>();
+		e.fileBlockData[2].uncompressedSize = uncompSize2 & ~(0xFU << 28);
+		e.fileBlockData[2].uncompressedAlignment = 1 << (uncompSize2 >> 28);
+
 		e.fileBlockData[0].compressedSize = reader.Read<uint32_t>();
 		e.fileBlockData[1].compressedSize = reader.Read<uint32_t>();
 		e.fileBlockData[2].compressedSize = reader.Read<uint32_t>();
@@ -116,7 +139,7 @@ bool Bundle::Load(const std::string &name)
 
 			auto &dataInfo = e.fileBlockData[j];
 
-			const auto readSize = (m_flags & Compressed) ? dataInfo.compressedSize : (dataInfo.uncompressedSize & ~(0xFU << 28));
+			const auto readSize = (m_flags & Compressed) ? dataInfo.compressedSize : dataInfo.uncompressedSize;
 			if (readSize == 0)
 			{
 				dataInfo.data = nullptr;
@@ -127,11 +150,166 @@ bool Bundle::Load(const std::string &name)
 			dataInfo.data = std::make_unique<std::vector<uint8_t>>(readBuffer, readBuffer + readSize);
 		}
 
-		e.info.pointersOffset = reader.Read<uint32_t>();
+		e.info.dependenciesOffset = reader.Read<uint32_t>();
 		e.info.fileType = reader.Read<FileType>();
-		e.info.numberOfPointers = reader.Read<uint16_t>();
+		e.info.numberOfDependencies = reader.Read<uint16_t>();
 
 		reader.Seek(2, std::ios::cur); // Padding
+	}
+
+	return true;
+}
+
+bool Bundle::LoadBNDL(binaryio::BinaryReader &reader)
+{
+	reader.SetBigEndian(true); // Never released on PC.
+
+	// A lot of this is unknown.
+	const auto bundleVersion = reader.Read<uint32_t>(); // probably
+	if (bundleVersion != 5)
+		return false;
+	m_numEntries = reader.Read<uint32_t>();
+	const auto block2Offset = reader.Read<uint32_t>();
+	reader.Seek(0x38, std::ios::cur);
+	const auto idListOffset = reader.Read<uint32_t>();
+	const auto idTableOffset = reader.Read<uint32_t>();
+	reader.Skip<uint32_t>(); // dependency block
+	reader.Seek(4, std::ios::cur);
+	m_platform = Xbox360; // Xbox only for now.
+	reader.Skip<uint32_t>();//m_platform = reader.Read<Platform>(); // maybe
+	const auto compressed = reader.Read<uint32_t>();
+	if (compressed)
+		m_flags = Compressed; // TODO
+	else
+		m_flags = static_cast<Flags>(0);
+	reader.Skip<uint32_t>(); // unknown purpose: sometimes repeats m_numEntries
+	const auto uncompInfoOffset = reader.Read<uint32_t>();
+
+	m_entries.clear();
+
+	reader.Seek(idListOffset);
+	std::vector<uint32_t> fileIDs;
+	for (auto i = 0U; i < m_numEntries; i++)
+		fileIDs.push_back(static_cast<uint32_t>(reader.Read<uint64_t>()));
+
+	reader.Seek(idTableOffset);
+	for (const auto fileID : fileIDs)
+	{
+		auto &e = m_entries[fileID];
+
+		reader.Skip<uint32_t>(); // unknown mem stuff
+		e.info.dependenciesOffset = reader.Read<uint32_t>();
+		e.info.fileType = reader.Read<FileType>();
+
+		if (compressed)
+		{
+			e.fileBlockData[0].compressedSize = reader.Read<uint32_t>();
+			reader.Skip<uint32_t>(); // Alignment value, should be 1
+			e.fileBlockData[1].compressedSize = reader.Read<uint32_t>();
+			reader.Skip<uint32_t>(); // Alignment value, should be 1
+			e.fileBlockData[2].compressedSize = reader.Read<uint32_t>();
+			reader.Skip<uint32_t>(); // Alignment value, should be 1
+			reader.Skip<uint32_t>(); // other blocks. Maybe used but I'm ignoring it.
+			reader.Skip<uint32_t>(); // Alignment value, should be 1
+			reader.Skip<uint32_t>(); // other blocks. Maybe used but I'm ignoring it.
+			reader.Skip<uint32_t>(); // Alignment value, should be 1
+		}
+		else
+		{
+			e.fileBlockData[0].uncompressedSize = reader.Read<uint32_t>();
+			e.fileBlockData[0].uncompressedAlignment = reader.Read<uint32_t>();
+			e.fileBlockData[1].uncompressedSize = reader.Read<uint32_t>();
+			e.fileBlockData[1].uncompressedAlignment = reader.Read<uint32_t>();
+			e.fileBlockData[2].uncompressedSize = reader.Read<uint32_t>();
+			e.fileBlockData[2].uncompressedAlignment = reader.Read<uint32_t>();
+			reader.Skip<uint32_t>(); // other blocks. Maybe used but I'm ignoring it.
+			reader.Skip<uint32_t>(); // Alignment value
+			reader.Skip<uint32_t>(); // other blocks. Maybe used but I'm ignoring it.
+			reader.Skip<uint32_t>(); // Alignment value
+		}
+
+		auto dataReader = reader.Copy();
+		for (auto j = 0; j < 5; j++)
+		{
+			auto readOffset = reader.Read<uint32_t>();
+			reader.Skip<uint32_t>(); // 1
+
+			if (j > 2)
+				continue; // Not supporting blocks 4 and 5 right now.
+
+			auto &dataInfo = e.fileBlockData[j];
+
+			const auto readSize = compressed ? dataInfo.compressedSize : dataInfo.uncompressedSize;
+			if (readSize == 0)
+			{
+				dataInfo.data = nullptr;
+				continue;
+			}
+
+			if (j > 0 && readOffset == 0)
+				readOffset = block2Offset; // idk
+			dataReader.Seek(readOffset); // Read offset
+
+			const auto readBuffer = dataReader.Read<uint8_t *>(readSize);
+			dataInfo.data = std::make_unique<std::vector<uint8_t>>(readBuffer, readBuffer + readSize);
+		}
+
+		reader.Seek(0x14, std::ios::cur); // Unknown mem stuff
+	}
+
+	if (compressed)
+	{
+		reader.Seek(uncompInfoOffset);
+		for (const auto fileID : fileIDs)
+		{
+			auto &e = m_entries[fileID];
+
+			e.fileBlockData[0].uncompressedSize = reader.Read<uint32_t>();
+			e.fileBlockData[0].uncompressedAlignment = reader.Read<uint32_t>();
+			e.fileBlockData[1].uncompressedSize = reader.Read<uint32_t>();
+			e.fileBlockData[1].uncompressedAlignment = reader.Read<uint32_t>();
+			e.fileBlockData[2].uncompressedSize = reader.Read<uint32_t>();
+			e.fileBlockData[2].uncompressedAlignment = reader.Read<uint32_t>();
+			reader.Skip<uint32_t>(); // other blocks. Maybe used but I'm ignoring it.
+			reader.Skip<uint32_t>(); // Alignment value
+			reader.Skip<uint32_t>(); // other blocks. Maybe used but I'm ignoring it.
+			reader.Skip<uint32_t>(); // Alignment value
+		}
+	}
+
+	for (const auto fileID : fileIDs)
+	{
+		auto &e = m_entries[fileID];
+		const auto depOffset = e.info.dependenciesOffset;
+		if (depOffset == 0)
+			continue;
+
+		reader.Seek(depOffset);
+		e.info.numberOfDependencies = static_cast<uint16_t>(reader.Read<uint32_t>());
+		reader.Skip<uint32_t>();
+		for (auto i = 0U; i < e.info.numberOfDependencies; i++)
+			m_dependencies[fileID].emplace_back(ReadDependency(reader));
+	}
+
+	auto rstFile = GetBinary(0xC039284A, 0);
+	if (rstFile == nullptr)
+		return true;
+
+	auto rstReader = binaryio::BinaryReader(std::move(rstFile));
+
+	const auto strLen = rstReader.Read<uint32_t>();
+	const auto rstXML = rstReader.ReadString(strLen);
+
+	pugi::xml_document doc;
+	if (doc.load_string(rstXML.c_str(), pugi::parse_minimal))
+	{
+		for (const auto resource : doc.child("ResourceStringTable").children("Resource"))
+		{
+			const auto fileID = std::stoul(resource.attribute("id").value(), nullptr, 16);
+			auto &e = m_entries[fileID];
+			e.info.name = resource.attribute("name").value();
+			e.info.typeName = resource.attribute("type").value();
+		}
 	}
 
 	return true;
@@ -208,7 +386,7 @@ void Bundle::Save(const std::string& name)
 		writer.Write<uint64_t>(e.info.checksum);
 
 		for (auto &dataInfo : e.fileBlockData)
-			writer.Write(dataInfo.uncompressedSize);
+			writer.Write(dataInfo.uncompressedSize | (BitScanReverse(dataInfo.uncompressedAlignment) << 28));
 		for (auto &dataInfo : e.fileBlockData)
 			writer.Write(dataInfo.compressedSize);
 		for (auto j = 0; j < 3; j++)
@@ -217,9 +395,9 @@ void Bundle::Save(const std::string& name)
 			writer.Seek(4, std::ios::cur);
 		}
 
-		writer.Write(e.info.pointersOffset);
+		writer.Write(e.info.dependenciesOffset);
 		writer.Write(e.info.fileType);
-		writer.Write(e.info.numberOfPointers);
+		writer.Write(e.info.numberOfDependencies);
 
 		writer.Seek(2, std::ios::cur); // padding
 
@@ -238,7 +416,7 @@ void Bundle::Save(const std::string& name)
 			const auto &e = entryIter->second;
 
 			const auto &dataInfo = e.fileBlockData[i];
-			const auto readSize = (m_flags & Compressed) ? dataInfo.compressedSize : (dataInfo.uncompressedSize & ~(0xFU << 28));
+			const auto readSize = (m_flags & Compressed) ? dataInfo.compressedSize : dataInfo.uncompressedSize;
 
 			if (readSize > 0)
 			{
@@ -265,12 +443,22 @@ uint32_t Bundle::HashFileName(std::string fileName) const
 	return crc32_z(0, reinterpret_cast<const Bytef *>(fileName.c_str()), fileName.length());
 }
 
-Bundle::EntryData Bundle::GetBinary(const std::string &fileName)
+Bundle::Dependency Bundle::ReadDependency(binaryio::BinaryReader &reader)
 {
-	return GetBinary(HashFileName(fileName));
+	const Dependency &dep = {
+		static_cast<uint32_t>(reader.Read<uint64_t>()),
+		reader.Read<uint32_t>()
+	};
+	reader.Skip<uint32_t>();
+	return dep;
 }
 
-Bundle::EntryData Bundle::GetBinary(uint32_t fileID)
+Bundle::EntryData Bundle::GetData(const std::string &fileName) const
+{
+	return GetData(HashFileName(fileName));
+}
+
+Bundle::EntryData Bundle::GetData(uint32_t fileID) const
 {
 	const auto it = m_entries.find(fileID);
 	if (it == m_entries.end())
@@ -280,24 +468,36 @@ Bundle::EntryData Bundle::GetBinary(uint32_t fileID)
 	for (auto i = 0; i < 3; i++)
 		data.fileBlockData[i] = GetBinary(fileID, i);
 
-	data.pointersOffset = it->second.info.pointersOffset;
-	data.numberOfPointers = it->second.info.numberOfPointers;
+	const auto numDependencies = it->second.info.numberOfDependencies;
+	if (numDependencies > 0)
+	{
+		if (m_version == BNDL)
+		{
+			data.dependencies = m_dependencies.at(fileID);
+		}
+		else
+		{
+			const auto buffer = std::make_shared<std::vector<uint8_t>>(data.fileBlockData[0]->begin() + it->second.info.dependenciesOffset, data.fileBlockData[0]->end());
+			binaryio::BinaryReader reader(buffer, m_platform != PC);
+			for (auto i = 0U; i < numDependencies; i++)
+				data.dependencies.emplace_back(ReadDependency(reader));
+			data.fileBlockData[0]->resize(data.fileBlockData[0]->size() - buffer->size());
+		}
+	}
 
 	return data;
 }
 
-std::unique_ptr<std::vector<uint8_t>> Bundle::GetBinary(const std::string &fileName, uint32_t fileBlock)
+std::unique_ptr<std::vector<uint8_t>> Bundle::GetBinary(const std::string &fileName, uint32_t fileBlock) const
 {
 	return GetBinary(HashFileName(fileName), fileBlock);
 }
 
-std::unique_ptr<std::vector<uint8_t>> Bundle::GetBinary(uint32_t fileID, uint32_t fileBlock)
+std::unique_ptr<std::vector<uint8_t>> Bundle::GetBinary(uint32_t fileID, uint32_t fileBlock) const
 {
 	const auto it = m_entries.find(fileID);
 	if (it == m_entries.end())
 		return {};
-
-	Lock mutexLock(m_mutex);
 
 	const auto &e = it->second;
 
@@ -307,7 +507,7 @@ std::unique_ptr<std::vector<uint8_t>> Bundle::GetBinary(uint32_t fileID, uint32_
 		return {};
 
 	const auto &buffer = dataInfo.data;
-	const auto uncompressedSize = dataInfo.uncompressedSize & ~(0xFU << 28);
+	const auto uncompressedSize = dataInfo.uncompressedSize;
 
 	auto uncompressedBuffer = std::make_unique<std::vector<uint8_t>>(uncompressedSize);
 
@@ -349,12 +549,15 @@ bool Bundle::ReplaceEntry(const std::string &fileName, const EntryData &data)
 bool Bundle::ReplaceEntry(uint32_t fileID, const EntryData &data)
 {
 	const auto it = m_entries.find(fileID);
-	if (it == m_entries.end())
+	if (it == m_entries.end() || data.dependencies.size() > std::numeric_limits<uint16_t>::max())
 		return false;
 
 	Lock mutexLock(m_mutex);
 
 	Entry &e = it->second;
+
+	e.info.dependenciesOffset = 0;
+	e.info.numberOfDependencies = 0;
 
 	for (auto i = 0; i < 3; i++)
 	{
@@ -369,14 +572,38 @@ bool Bundle::ReplaceEntry(uint32_t fileID, const EntryData &data)
 			continue;
 		}
 
-		std::unique_ptr<std::vector<uint8_t>> buffer;
+		std::unique_ptr<std::vector<uint8_t>> inBuffer;
+		std::unique_ptr<std::vector<uint8_t>> outBuffer;
+
+		if (i == 0 && data.dependencies.size() > 0)
+		{
+			binaryio::BinaryWriter writer;
+			for (const auto &dependency : data.dependencies)
+				WriteDependency(writer, dependency);
+			const auto depSize = writer.GetSize();
+			auto depStream = writer.GetStream();
+
+			const auto inSize = inDataInfo->size();
+			binaryio::Align(inSize, 16);
+			inBuffer = std::make_unique<std::vector<uint8_t>>(inSize + depSize);
+			inBuffer->assign(inDataInfo->begin(), inDataInfo->end());
+			inBuffer->resize(inSize);
+			inBuffer->insert(inBuffer->end(), std::istreambuf_iterator<char>(depStream), std::istreambuf_iterator<char>());
+
+			e.info.dependenciesOffset = static_cast<uint32_t>(inSize);
+			e.info.numberOfDependencies = static_cast<uint16_t>(data.dependencies.size());
+		}
+		else
+		{
+			inBuffer = std::make_unique<std::vector<uint8_t>>(inDataInfo->begin(), inDataInfo->end());
+		}
 
 		if (m_flags & Compressed)
 		{
-			const auto compBufferSize = compressBound(static_cast<uLong>(inDataInfo->size()));
-			buffer = std::make_unique<std::vector<uint8_t>>(compBufferSize);
+			const auto compBufferSize = compressBound(static_cast<uLong>(inBuffer->size()));
+			outBuffer = std::make_unique<std::vector<uint8_t>>(compBufferSize);
 			uLongf actualSize = compBufferSize;
-			const auto ret = compress2(buffer->data(), &actualSize, inDataInfo->data(), static_cast<uLong>(inDataInfo->size()), Z_BEST_COMPRESSION);
+			const auto ret = compress2(outBuffer->data(), &actualSize, inBuffer->data(), static_cast<uLong>(inBuffer->size()), Z_BEST_COMPRESSION);
 
 			if (ret != Z_OK)
 			{
@@ -384,26 +611,27 @@ bool Bundle::ReplaceEntry(uint32_t fileID, const EntryData &data)
 				return false;
 			}
 
-			buffer->shrink_to_fit();
+			outBuffer->shrink_to_fit();
 			outDataInfo.compressedSize = actualSize;
 		}
 		else
 		{
-			buffer = std::make_unique<std::vector<uint8_t>>(inDataInfo->size());
-			std::memcpy(buffer->data(), inDataInfo->data(), inDataInfo->size());
-
+			outBuffer = std::move(inBuffer);
 			outDataInfo.compressedSize = 0;
 		}
 
-		const auto memoryAlignment = outDataInfo.uncompressedSize & (0xFU << 28); // TODO
-		outDataInfo.uncompressedSize = static_cast<uint32_t>(inDataInfo->size()) | memoryAlignment;
-		outDataInfo.data = std::move(buffer);
+		outDataInfo.uncompressedSize = static_cast<uint32_t>(inBuffer->size());
+		outDataInfo.data = std::move(outBuffer);
 	}
 
-	e.info.pointersOffset = data.pointersOffset;
-	e.info.numberOfPointers = data.numberOfPointers;
-
 	return true;
+}
+
+void Bundle::WriteDependency(binaryio::BinaryWriter &writer, const Dependency &dependency)
+{
+	writer.Write<uint64_t>(dependency.fileID);
+	writer.Write(dependency.internalOffset);
+	writer.Align(8);
 }
 
 std::vector<uint32_t> Bundle::ListFileIDs() const
