@@ -55,8 +55,10 @@ namespace libbndl
 			KdTree = 0x17,
 			VoiceHierarchy = 0x18, // removed
 			Snr = 0x19,
+			InterpreterData = 0x1A, // unregistered
 			AttribSysSchema = 0x1B,
 			AttribSysVault = 0x1C,
+			EntryList = 0x1D, // unregistered
 			AptDataHeaderType = 0x1E,
 			GuiPopup = 0x1F,
 			Font = 0x21,
@@ -76,7 +78,7 @@ namespace libbndl
 			HudMessageSequenceDictionary = 0x2F,
 			WorldPainter2D = 0x30,
 			PFXHookBundle = 0x31,
-			Shader = 0x32,
+			Shader = 0x32, // ShaderTechnique on console
 			ICETakeDictionary = 0x41,
 			VideoData = 0x42,
 			PolygonSoupList = 0x43,
@@ -90,6 +92,8 @@ namespace libbndl
 			Csis = 0xA023,
 			Nicotine = 0xA024,
 			Splicer = 0xA025,
+			FreqContent = 0xA026, // unregistered
+			VoiceHierarchyCollection = 0xA027, // unregistered
 			GenericRwacReverbIRContent = 0xA028,
 			SnapshotData = 0xA029,
 			ZoneList = 0xB000,
@@ -100,12 +104,13 @@ namespace libbndl
 			DeformationModel = 0x10004,
 			VehicleList = 0x10005,
 			GraphicsSpec = 0x10006,
+			PhysicsSpec = 0x10007, // unregistered
 			ParticleDescriptionCollection = 0x10008,
 			WheelList = 0x10009,
 			WheelGraphicsSpec = 0x1000A,
 			TextureNameMap = 0x1000B,
 			ICEList = 0x1000C,
-			ICEData = 0x1000D,
+			ICEData = 0x1000D, // ICE
 			Progression = 0x1000E,
 			PropPhysics = 0x1000F,
 			PropGraphicsList = 0x10010,
