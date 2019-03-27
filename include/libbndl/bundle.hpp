@@ -84,6 +84,7 @@ namespace libbndl
 			PolygonSoupList = 0x43,
 			CommsToolListDefinition = 0x45,
 			CommsToolList = 0x46,
+			BinaryFile = 0x50, // Used as a base class for other types, but this type ID was found in one of the builds.
 			AnimationCollection = 0x51,
 			Registry = 0xA000,
 			GenericRwacWaveContent = 0xA020,
