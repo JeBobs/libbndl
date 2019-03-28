@@ -89,29 +89,8 @@ bool Bundle::LoadBND2(binaryio::BinaryReader &reader)
 
 
 	m_entries.clear();
-	if (m_flags & HasResourceStringTable)
-	{
-		reader.Seek(rstOffset, std::ios::beg);
-
-		const auto rstXML = reader.ReadString();
-
-		pugi::xml_document doc;
-		if (doc.load_string(rstXML.c_str(), pugi::parse_minimal))
-		{
-			for (const auto resource : doc.child("ResourceStringTable").children("Resource"))
-			{
-				const auto fileID = std::stoul(resource.attribute("id").value(), nullptr, 16);
-				Entry e = {};
-				e.info.name = resource.attribute("name").value();
-				e.info.typeName = resource.attribute("type").value();
-				m_entries[fileID] = std::move(e);
-			}
-		}
-	}
-
 
 	reader.Seek(idBlockOffset);
-
 	for (auto i = 0U; i < m_numEntries; i++)
 	{
 		// These are stored in bundle as 64-bit (8-byte), but are really 32-bit.
@@ -158,6 +137,27 @@ bool Bundle::LoadBND2(binaryio::BinaryReader &reader)
 		e.info.numberOfDependencies = reader.Read<uint16_t>();
 
 		reader.Seek(2, std::ios::cur); // Padding
+	}
+
+	if (m_flags & HasResourceStringTable)
+	{
+		reader.Seek(rstOffset, std::ios::beg);
+
+		const auto rstXML = reader.ReadString();
+
+		pugi::xml_document doc;
+		if (doc.load_string(rstXML.c_str(), pugi::parse_minimal))
+		{
+			for (const auto resource : doc.child("ResourceStringTable").children("Resource"))
+			{
+				const auto fileID = std::stoul(resource.attribute("id").value(), nullptr, 16);
+				const auto it = m_entries.find(fileID);
+				if (it == m_entries.end())
+					continue; // External import?
+				it->second.info.name = resource.attribute("name").value();
+				it->second.info.typeName = resource.attribute("type").value();
+			}
+		}
 	}
 
 	return true;
@@ -309,9 +309,11 @@ bool Bundle::LoadBNDL(binaryio::BinaryReader &reader)
 		for (const auto resource : doc.child("ResourceStringTable").children("Resource"))
 		{
 			const auto fileID = std::stoul(resource.attribute("id").value(), nullptr, 16);
-			auto &e = m_entries[fileID];
-			e.info.name = resource.attribute("name").value();
-			e.info.typeName = resource.attribute("type").value();
+			const auto it = m_entries.find(fileID);
+			if (it == m_entries.end())
+				continue; // External import?
+			it->second.info.name = resource.attribute("name").value();
+			it->second.info.typeName = resource.attribute("type").value();
 		}
 	}
 
