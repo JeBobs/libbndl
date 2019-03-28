@@ -52,26 +52,26 @@ bool Bundle::Load(const std::string &name)
 	// Check if it's a BNDL archive
 	auto magic = reader.ReadString(4);
 	if (magic == std::string("bndl"))
-		m_version = BNDL;
+		m_magicVersion = BNDL;
 	else if (magic == std::string("bnd2"))
-		m_version = BND2;
+		m_magicVersion = BND2;
 	else
 		return false;
 
-	return (m_version == BNDL) ? LoadBNDL(reader): LoadBND2(reader);
+	return (m_magicVersion == BNDL) ? LoadBNDL(reader): LoadBND2(reader);
 }
 
 bool Bundle::LoadBND2(binaryio::BinaryReader &reader)
 {
-	auto bundleVersion = reader.Read<uint32_t>();
+	m_revisionNumber = reader.Read<uint32_t>();
 
 	m_platform = reader.Read<Platform>();
 	reader.SetBigEndian(m_platform != PC);
 
 	if (reader.IsBigEndian())
-		bundleVersion = (bundleVersion << 24) | (bundleVersion << 8 & 0xff0000) | (bundleVersion >> 8 & 0xff00) | (bundleVersion >> 24);
+		m_revisionNumber = (m_revisionNumber << 24) | (m_revisionNumber << 8 & 0xff0000) | (m_revisionNumber >> 8 & 0xff00) | (m_revisionNumber >> 24);
 	// Little sanity check.
-	if (bundleVersion != 2)
+	if (m_revisionNumber != 2)
 		return false;
 
 	const auto rstOffset = reader.Read<uint32_t>();
@@ -168,8 +168,8 @@ bool Bundle::LoadBNDL(binaryio::BinaryReader &reader)
 	reader.SetBigEndian(true); // Never released on PC.
 
 	// A lot of this is unknown.
-	const auto bundleVersion = reader.Read<uint32_t>(); // probably
-	if (bundleVersion != 5)
+	m_revisionNumber = reader.Read<uint32_t>(); // probably
+	if (m_revisionNumber != 5)
 		return false;
 	m_numEntries = reader.Read<uint32_t>();
 	const auto block2Offset = reader.Read<uint32_t>();
@@ -320,7 +320,7 @@ bool Bundle::LoadBNDL(binaryio::BinaryReader &reader)
 
 void Bundle::Save(const std::string& name)
 {
-	assert(m_version == BND2);
+	assert(m_magicVersion == BND2);
 
 	Lock mutexLock(m_mutex);
 
@@ -456,12 +456,12 @@ Bundle::Dependency Bundle::ReadDependency(binaryio::BinaryReader &reader)
 	return dep;
 }
 
-Bundle::EntryData Bundle::GetData(const std::string &fileName) const
+std::optional<Bundle::EntryData> Bundle::GetData(const std::string &fileName) const
 {
 	return GetData(HashFileName(fileName));
 }
 
-Bundle::EntryData Bundle::GetData(uint32_t fileID) const
+std::optional<Bundle::EntryData> Bundle::GetData(uint32_t fileID) const
 {
 	const auto it = m_entries.find(fileID);
 	if (it == m_entries.end())
@@ -474,7 +474,7 @@ Bundle::EntryData Bundle::GetData(uint32_t fileID) const
 	const auto numDependencies = it->second.info.numberOfDependencies;
 	if (numDependencies > 0)
 	{
-		if (m_version == BNDL)
+		if (m_magicVersion == BNDL)
 		{
 			data.dependencies = m_dependencies.at(fileID);
 		}
@@ -530,12 +530,12 @@ std::unique_ptr<std::vector<uint8_t>> Bundle::GetBinary(uint32_t fileID, uint32_
 	return std::move(uncompressedBuffer);
 }
 
-Bundle::EntryInfo Bundle::GetInfo(const std::string &fileName) const
+std::optional<Bundle::EntryInfo> Bundle::GetInfo(const std::string &fileName) const
 {
 	return GetInfo(HashFileName(fileName));
 }
 
-Bundle::EntryInfo Bundle::GetInfo(uint32_t fileID) const
+std::optional<Bundle::EntryInfo> Bundle::GetInfo(uint32_t fileID) const
 {
 	const auto it = m_entries.find(fileID);
 	if (it == m_entries.end())

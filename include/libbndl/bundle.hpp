@@ -5,6 +5,7 @@
 #include <vector>
 #include <mutex>
 #include <memory>
+#include <optional>
 
 namespace binaryio
 {
@@ -17,7 +18,7 @@ namespace libbndl
 	class Bundle
 	{
 	public:
-		enum Version
+		enum MagicVersion
 		{
 			BNDL	= 1,
 			BND2	= 2
@@ -183,9 +184,14 @@ namespace libbndl
 		LIBBNDL_EXPORT bool Load(const std::string &name);
 		LIBBNDL_EXPORT void Save(const std::string &name);
 
-		LIBBNDL_EXPORT Version GetVersion() const
+		LIBBNDL_EXPORT MagicVersion GetMagicVersion() const
 		{
-			return m_version;
+			return m_magicVersion;
+		}
+
+		LIBBNDL_EXPORT uint32_t GetRevisionNumber() const
+		{
+			return m_revisionNumber;
 		}
 
 		LIBBNDL_EXPORT Platform GetPlatform() const
@@ -193,10 +199,15 @@ namespace libbndl
 			return m_platform;
 		}
 
-		LIBBNDL_EXPORT EntryInfo GetInfo(const std::string &fileName) const;
-		LIBBNDL_EXPORT EntryInfo GetInfo(uint32_t fileID) const;
-		LIBBNDL_EXPORT EntryData GetData(const std::string &fileName) const;
-		LIBBNDL_EXPORT EntryData GetData(uint32_t fileID) const;
+		LIBBNDL_EXPORT Flags GetFlags() const
+		{
+			return m_flags;
+		}
+
+		LIBBNDL_EXPORT std::optional<EntryInfo> GetInfo(const std::string &fileName) const;
+		LIBBNDL_EXPORT std::optional<EntryInfo> GetInfo(uint32_t fileID) const;
+		LIBBNDL_EXPORT std::optional<EntryData> GetData(const std::string &fileName) const;
+		LIBBNDL_EXPORT std::optional<EntryData> GetData(uint32_t fileID) const;
 		LIBBNDL_EXPORT std::unique_ptr<std::vector<uint8_t>> GetBinary(const std::string &fileName, uint32_t fileBlock) const;
 		LIBBNDL_EXPORT std::unique_ptr<std::vector<uint8_t>> GetBinary(uint32_t fileID, uint32_t fileBlock) const;
 
@@ -213,7 +224,8 @@ namespace libbndl
 		std::map<uint32_t, Entry>	m_entries;
 		std::map<uint32_t, std::vector<Dependency>> m_dependencies; // not used in bnd2 due to lazy reading.
 
-		Version						m_version;
+		MagicVersion				m_magicVersion;
+		uint32_t					m_revisionNumber;
 		Platform					m_platform;
 		uint32_t					m_numEntries;
 		uint32_t					m_fileBlockOffsets[3];

@@ -52,7 +52,7 @@ int main(int argc, char** argv)
 			std::cout.fill(' ');
 			for (const auto &fileID : arch.ListFileIDs())
 			{
-				Bundle::EntryInfo info = arch.GetInfo(fileID);
+				const auto info = *arch.GetInfo(fileID);
 				std::ostringstream name(info.name, std::ios::out | std::ios::ate);
 				if (name.tellp() == std::streampos(0))
 					name << std::hex << fileID;
