@@ -7,17 +7,16 @@ using namespace libbndl;
 
 int main(int argc, char** argv)
 {
-	//option parsing
-	cxxopts::Options options("bndl_util", "A program to work with Burnout Paradise BUNDLE archives.");
+	cxxopts::Options options("bndl_util", "A program to work with Burnout Paradise bundle archives.");
 	options.add_options()
 		("e,extract", "Extract the archive")
-		("p,pack", "Pack a folder structure to a BUNDLE archive")
+		("p,pack", "Pack a folder structure to a bundle archive")
 		("f,file", "Name of the archive that should be extracted/generated", cxxopts::value<std::string>())
-		("s,search","Search for an entry", cxxopts::value<std::string>())
-		("l,list","List all entries");
+		("s,search", "Search for an entry", cxxopts::value<std::string>())
+		("l,list", "List all entries");
 
 	options.parse(argc, argv);
-	if(options.count("file")==0)
+	if (options.count("file") == 0)
 	{
 		std::cout << "Please specify an input file." << std::endl << options.help() << std::endl;
 		return EXIT_FAILURE;
@@ -28,35 +27,42 @@ int main(int argc, char** argv)
 	bool list = options["list"].as<bool>();
 	std::string file = options["file"].as<std::string>();
 	std::string search = options["search"].as<std::string>();
-	bool bsearch = search.size()>0;
+	bool bsearch = search.size() > 0;
 	
-	if(!(pack^extract^list^bsearch))
+	if ((pack + extract + list + bsearch) != 1)
 	{
-		std::cout << "Please specify exactly one operation that should be executed" << std::endl
+		std::cout << "Please specify exactly one operation that should be executed." << std::endl
 		<< options.help() << std::endl;
+		return EXIT_FAILURE;
 	}
 
 	Bundle arch;
-	if(!pack)
+	if (!pack)
 	{
-		if(!arch.Load(file))
+		if (!arch.Load(file))
 		{
-			std::cout << "Failed to open "<< file << std::endl;
-			return -1;
+			std::cout << "Failed to open " << file << std::endl;
+			return EXIT_FAILURE;
 		}
-		if(list)
+
+		if (list)
 		{
 			std::cout.fill('-');
-			std::cout << "NAME" << std::setw(70) << "FILE TYPE" << std::endl;
+			std::cout << std::left << std::setw(70) << "NAME" << std::right << "FILE TYPE" << std::endl;
 			std::cout.fill(' ');
 			for (const auto &fileID : arch.ListFileIDs())
 			{
 				Bundle::EntryInfo info = arch.GetInfo(fileID);
-				std::cout<< std::left << std::setw(70) << std::hex << fileID << std::right << " " << info.fileType << std::dec << std::endl;
+				std::ostringstream name(info.name, std::ios::out | std::ios::ate);
+				if (name.tellp() == std::streampos(0))
+					name << std::hex << fileID;
+				std::ostringstream typeName(info.typeName, std::ios::out | std::ios::ate);
+				if (typeName.tellp() == std::streampos(0))
+					typeName << std::hex << info.fileType;
+				std::cout << std::left << std::setw(70) << name.str() << std::right << typeName.str() << std::endl;
 			}
 		}
 	}
-	
 
 	return 0;
 }
