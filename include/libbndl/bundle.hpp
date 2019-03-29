@@ -39,7 +39,7 @@ namespace libbndl
 			HasResourceStringTable = 8
 		};
 
-		enum FileType: uint32_t
+		enum ResourceType: uint32_t
 		{
 			Raster = 0x00,
 			Material = 0x01,
@@ -158,13 +158,13 @@ namespace libbndl
 			uint32_t checksum; // Stored in bundle as 64-bit (8-byte)
 
 			uint32_t dependenciesOffset;
-			FileType fileType;
+			ResourceType resourceType;
 			uint16_t numberOfDependencies;
 		};
 
 		struct Dependency
 		{
-			uint32_t fileID;
+			uint32_t resourceID;
 			uint32_t internalOffset;
 		};
 
@@ -206,22 +206,22 @@ namespace libbndl
 			return m_flags;
 		}
 
-		LIBBNDL_EXPORT std::optional<EntryDebugInfo> GetDebugInfo(const std::string &fileName) const;
-		LIBBNDL_EXPORT std::optional<EntryDebugInfo> GetDebugInfo(uint32_t fileID) const;
-		LIBBNDL_EXPORT std::optional<FileType> GetFileType(const std::string &fileName) const;
-		LIBBNDL_EXPORT std::optional<FileType> GetFileType(uint32_t fileID) const;
-		LIBBNDL_EXPORT std::optional<EntryData> GetData(const std::string &fileName) const;
-		LIBBNDL_EXPORT std::optional<EntryData> GetData(uint32_t fileID) const;
-		LIBBNDL_EXPORT std::unique_ptr<std::vector<uint8_t>> GetBinary(const std::string &fileName, uint32_t fileBlock) const;
-		LIBBNDL_EXPORT std::unique_ptr<std::vector<uint8_t>> GetBinary(uint32_t fileID, uint32_t fileBlock) const;
+		LIBBNDL_EXPORT std::optional<EntryDebugInfo> GetDebugInfo(const std::string &resourceName) const;
+		LIBBNDL_EXPORT std::optional<EntryDebugInfo> GetDebugInfo(uint32_t resourceID) const;
+		LIBBNDL_EXPORT std::optional<ResourceType> GetResourceType(const std::string &resourceName) const;
+		LIBBNDL_EXPORT std::optional<ResourceType> GetResourceType(uint32_t resourceID) const;
+		LIBBNDL_EXPORT std::optional<EntryData> GetData(const std::string &resourceName) const;
+		LIBBNDL_EXPORT std::optional<EntryData> GetData(uint32_t resourceID) const;
+		LIBBNDL_EXPORT std::unique_ptr<std::vector<uint8_t>> GetBinary(const std::string &resourceName, uint32_t fileBlock) const;
+		LIBBNDL_EXPORT std::unique_ptr<std::vector<uint8_t>> GetBinary(uint32_t resourceID, uint32_t fileBlock) const;
 
-		// Add Entry coming soon
+		// Add Resource coming soon
 
-		LIBBNDL_EXPORT bool ReplaceEntry(const std::string &fileName, const EntryData &data);
-		LIBBNDL_EXPORT bool ReplaceEntry(uint32_t fileID, const EntryData &data);
+		LIBBNDL_EXPORT bool ReplaceResource(const std::string &resourceName, const EntryData &data);
+		LIBBNDL_EXPORT bool ReplaceResource(uint32_t resourceID, const EntryData &data);
 
-		LIBBNDL_EXPORT std::vector<uint32_t> ListFileIDs() const;
-		LIBBNDL_EXPORT std::map<FileType, std::vector<uint32_t>> ListFileIDsByFileType() const;
+		LIBBNDL_EXPORT std::vector<uint32_t> ListResourceIDs() const;
+		LIBBNDL_EXPORT std::map<ResourceType, std::vector<uint32_t>> ListResourceIDsByType() const;
 
 	private:
 		std::mutex					m_mutex;
@@ -238,7 +238,7 @@ namespace libbndl
 
 		bool LoadBND2(binaryio::BinaryReader &reader);
 		bool LoadBNDL(binaryio::BinaryReader &reader);
-		uint32_t HashFileName(std::string fileName) const;
+		uint32_t HashResourceName(std::string resourceName) const;
 
 		static Dependency ReadDependency(binaryio::BinaryReader &reader);
 		static void WriteDependency(binaryio::BinaryWriter &writer, const Dependency &dependency);

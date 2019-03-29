@@ -94,12 +94,12 @@ bool Bundle::LoadBND2(binaryio::BinaryReader &reader)
 	for (auto i = 0U; i < m_numEntries; i++)
 	{
 		// These are stored in bundle as 64-bit (8-byte), but are really 32-bit.
-		auto fileID = static_cast<uint32_t>(reader.Read<uint64_t>());
-		assert(fileID != 0);
-		auto &e = m_entries[fileID];
+		auto resourceID = static_cast<uint32_t>(reader.Read<uint64_t>());
+		assert(resourceID != 0);
+		auto &e = m_entries[resourceID];
 		e.info.checksum = static_cast<uint32_t>(reader.Read<uint64_t>());
 
-		// The uncompressed sizes have a high nibble that varies depending on the file type.
+		// The uncompressed sizes have a high nibble that varies depending on the resource type.
 		const auto uncompSize0 = reader.Read<uint32_t>();
 		e.fileBlockData[0].uncompressedSize = uncompSize0 & ~(0xFU << 28);
 		e.fileBlockData[0].uncompressedAlignment = 1 << (uncompSize0 >> 28);
@@ -133,7 +133,7 @@ bool Bundle::LoadBND2(binaryio::BinaryReader &reader)
 		}
 
 		e.info.dependenciesOffset = reader.Read<uint32_t>();
-		e.info.fileType = reader.Read<FileType>();
+		e.info.resourceType = reader.Read<ResourceType>();
 		e.info.numberOfDependencies = reader.Read<uint16_t>();
 
 		reader.Seek(2, std::ios::cur); // Padding
@@ -150,8 +150,8 @@ bool Bundle::LoadBND2(binaryio::BinaryReader &reader)
 		{
 			for (const auto resource : doc.child("ResourceStringTable").children("Resource"))
 			{
-				const auto fileID = std::stoul(resource.attribute("id").value(), nullptr, 16);
-				auto &debugInfo = m_debugInfoEntries[fileID];
+				const auto resourceID = std::stoul(resource.attribute("id").value(), nullptr, 16);
+				auto &debugInfo = m_debugInfoEntries[resourceID];
 				debugInfo.name = resource.attribute("name").value();
 				debugInfo.typeName = resource.attribute("type").value();
 			}
@@ -189,18 +189,18 @@ bool Bundle::LoadBNDL(binaryio::BinaryReader &reader)
 	m_entries.clear();
 
 	reader.Seek(idListOffset);
-	std::vector<uint32_t> fileIDs;
+	std::vector<uint32_t> resourceIDs;
 	for (auto i = 0U; i < m_numEntries; i++)
-		fileIDs.push_back(static_cast<uint32_t>(reader.Read<uint64_t>()));
+		resourceIDs.push_back(static_cast<uint32_t>(reader.Read<uint64_t>()));
 
 	reader.Seek(idTableOffset);
-	for (const auto fileID : fileIDs)
+	for (const auto resourceID : resourceIDs)
 	{
-		auto &e = m_entries[fileID];
+		auto &e = m_entries[resourceID];
 
 		reader.Skip<uint32_t>(); // unknown mem stuff
 		e.info.dependenciesOffset = reader.Read<uint32_t>();
-		e.info.fileType = reader.Read<FileType>();
+		e.info.resourceType = reader.Read<ResourceType>();
 
 		if (compressed)
 		{
@@ -261,9 +261,9 @@ bool Bundle::LoadBNDL(binaryio::BinaryReader &reader)
 	if (compressed)
 	{
 		reader.Seek(uncompInfoOffset);
-		for (const auto fileID : fileIDs)
+		for (const auto resourceID : resourceIDs)
 		{
-			auto &e = m_entries[fileID];
+			auto &e = m_entries[resourceID];
 
 			e.fileBlockData[0].uncompressedSize = reader.Read<uint32_t>();
 			e.fileBlockData[0].uncompressedAlignment = reader.Read<uint32_t>();
@@ -278,9 +278,9 @@ bool Bundle::LoadBNDL(binaryio::BinaryReader &reader)
 		}
 	}
 
-	for (const auto fileID : fileIDs)
+	for (const auto resourceID : resourceIDs)
 	{
-		auto &e = m_entries[fileID];
+		auto &e = m_entries[resourceID];
 		const auto depOffset = e.info.dependenciesOffset;
 		if (depOffset == 0)
 			continue;
@@ -289,7 +289,7 @@ bool Bundle::LoadBNDL(binaryio::BinaryReader &reader)
 		e.info.numberOfDependencies = static_cast<uint16_t>(reader.Read<uint32_t>());
 		reader.Skip<uint32_t>();
 		for (auto i = 0U; i < e.info.numberOfDependencies; i++)
-			m_dependencies[fileID].emplace_back(ReadDependency(reader));
+			m_dependencies[resourceID].emplace_back(ReadDependency(reader));
 	}
 
 	auto rstFile = GetBinary(0xC039284A, 0);
@@ -306,8 +306,8 @@ bool Bundle::LoadBNDL(binaryio::BinaryReader &reader)
 	{
 		for (const auto resource : doc.child("ResourceStringTable").children("Resource"))
 		{
-			const auto fileID = std::stoul(resource.attribute("id").value(), nullptr, 16);
-			auto &debugInfo = m_debugInfoEntries[fileID];
+			const auto resourceID = std::stoul(resource.attribute("id").value(), nullptr, 16);
+			auto &debugInfo = m_debugInfoEntries[resourceID];
 			debugInfo.name = resource.attribute("name").value();
 			debugInfo.typeName = resource.attribute("type").value();
 		}
@@ -397,7 +397,7 @@ void Bundle::Save(const std::string& name)
 		}
 
 		writer.Write(e.info.dependenciesOffset);
-		writer.Write(e.info.fileType);
+		writer.Write(e.info.resourceType);
 		writer.Write(e.info.numberOfDependencies);
 
 		writer.Seek(2, std::ios::cur); // padding
@@ -438,10 +438,10 @@ void Bundle::Save(const std::string& name)
 	f.close();
 }
 
-uint32_t Bundle::HashFileName(std::string fileName) const
+uint32_t Bundle::HashResourceName(std::string resourceName) const
 {
-	std::transform(fileName.begin(), fileName.end(), fileName.begin(), tolower);
-	return crc32_z(0, reinterpret_cast<const Bytef *>(fileName.c_str()), fileName.length());
+	std::transform(resourceName.begin(), resourceName.end(), resourceName.begin(), tolower);
+	return crc32_z(0, reinterpret_cast<const Bytef *>(resourceName.c_str()), resourceName.length());
 }
 
 Bundle::Dependency Bundle::ReadDependency(binaryio::BinaryReader &reader)
@@ -454,27 +454,27 @@ Bundle::Dependency Bundle::ReadDependency(binaryio::BinaryReader &reader)
 	return dep;
 }
 
-std::optional<Bundle::EntryData> Bundle::GetData(const std::string &fileName) const
+std::optional<Bundle::EntryData> Bundle::GetData(const std::string &resourceName) const
 {
-	return GetData(HashFileName(fileName));
+	return GetData(HashResourceName(resourceName));
 }
 
-std::optional<Bundle::EntryData> Bundle::GetData(uint32_t fileID) const
+std::optional<Bundle::EntryData> Bundle::GetData(uint32_t resourceID) const
 {
-	const auto it = m_entries.find(fileID);
+	const auto it = m_entries.find(resourceID);
 	if (it == m_entries.end())
 		return {};
 
 	EntryData data;
 	for (auto i = 0; i < 3; i++)
-		data.fileBlockData[i] = GetBinary(fileID, i);
+		data.fileBlockData[i] = GetBinary(resourceID, i);
 
 	const auto numDependencies = it->second.info.numberOfDependencies;
 	if (numDependencies > 0)
 	{
 		if (m_magicVersion == BNDL)
 		{
-			data.dependencies = m_dependencies.at(fileID);
+			data.dependencies = m_dependencies.at(resourceID);
 		}
 		else
 		{
@@ -489,14 +489,14 @@ std::optional<Bundle::EntryData> Bundle::GetData(uint32_t fileID) const
 	return std::move(data);
 }
 
-std::unique_ptr<std::vector<uint8_t>> Bundle::GetBinary(const std::string &fileName, uint32_t fileBlock) const
+std::unique_ptr<std::vector<uint8_t>> Bundle::GetBinary(const std::string &resourceName, uint32_t fileBlock) const
 {
-	return GetBinary(HashFileName(fileName), fileBlock);
+	return GetBinary(HashResourceName(resourceName), fileBlock);
 }
 
-std::unique_ptr<std::vector<uint8_t>> Bundle::GetBinary(uint32_t fileID, uint32_t fileBlock) const
+std::unique_ptr<std::vector<uint8_t>> Bundle::GetBinary(uint32_t resourceID, uint32_t fileBlock) const
 {
-	const auto it = m_entries.find(fileID);
+	const auto it = m_entries.find(resourceID);
 	if (it == m_entries.end())
 		return {};
 
@@ -528,42 +528,42 @@ std::unique_ptr<std::vector<uint8_t>> Bundle::GetBinary(uint32_t fileID, uint32_
 	return std::move(uncompressedBuffer);
 }
 
-std::optional<Bundle::EntryDebugInfo> Bundle::GetDebugInfo(const std::string &fileName) const
+std::optional<Bundle::EntryDebugInfo> Bundle::GetDebugInfo(const std::string &resourceName) const
 {
-	return GetDebugInfo(HashFileName(fileName));
+	return GetDebugInfo(HashResourceName(resourceName));
 }
 
-std::optional<Bundle::EntryDebugInfo> Bundle::GetDebugInfo(uint32_t fileID) const
+std::optional<Bundle::EntryDebugInfo> Bundle::GetDebugInfo(uint32_t resourceID) const
 {
-	const auto it = m_debugInfoEntries.find(fileID);
+	const auto it = m_debugInfoEntries.find(resourceID);
 	if (it == m_debugInfoEntries.end())
 		return {};
 	
 	return it->second;
 }
 
-std::optional<Bundle::FileType> Bundle::GetFileType(const std::string &fileName) const
+std::optional<Bundle::ResourceType> Bundle::GetResourceType(const std::string &resourceName) const
 {
-	return GetFileType(HashFileName(fileName));
+	return GetResourceType(HashResourceName(resourceName));
 }
 
-std::optional<Bundle::FileType> Bundle::GetFileType(uint32_t fileID) const
+std::optional<Bundle::ResourceType> Bundle::GetResourceType(uint32_t resourceID) const
 {
-	const auto it = m_entries.find(fileID);
+	const auto it = m_entries.find(resourceID);
 	if (it == m_entries.end())
 		return {};
 
-	return it->second.info.fileType;
+	return it->second.info.resourceType;
 }
 
-bool Bundle::ReplaceEntry(const std::string &fileName, const EntryData &data)
+bool Bundle::ReplaceResource(const std::string &resourceName, const EntryData &data)
 {
-	return ReplaceEntry(HashFileName(fileName), data);
+	return ReplaceResource(HashResourceName(resourceName), data);
 }
 
-bool Bundle::ReplaceEntry(uint32_t fileID, const EntryData &data)
+bool Bundle::ReplaceResource(uint32_t resourceID, const EntryData &data)
 {
-	const auto it = m_entries.find(fileID);
+	const auto it = m_entries.find(resourceID);
 	if (it == m_entries.end() || data.dependencies.size() > std::numeric_limits<uint16_t>::max())
 		return false;
 
@@ -644,12 +644,12 @@ bool Bundle::ReplaceEntry(uint32_t fileID, const EntryData &data)
 
 void Bundle::WriteDependency(binaryio::BinaryWriter &writer, const Dependency &dependency)
 {
-	writer.Write<uint64_t>(dependency.fileID);
+	writer.Write<uint64_t>(dependency.resourceID);
 	writer.Write(dependency.internalOffset);
 	writer.Align(8);
 }
 
-std::vector<uint32_t> Bundle::ListFileIDs() const
+std::vector<uint32_t> Bundle::ListResourceIDs() const
 {
 	std::vector<uint32_t> entries;
 	for (const auto &e : m_entries)
@@ -659,12 +659,12 @@ std::vector<uint32_t> Bundle::ListFileIDs() const
 	return entries;
 }
 
-std::map<Bundle::FileType, std::vector<uint32_t>> Bundle::ListFileIDsByFileType() const
+std::map<Bundle::ResourceType, std::vector<uint32_t>> Bundle::ListResourceIDsByType() const
 {
-	std::map<FileType, std::vector<uint32_t>> entriesByFileType;
+	std::map<ResourceType, std::vector<uint32_t>> entriesByResourceType;
 	for (const auto &e : m_entries)
 	{
-		entriesByFileType[e.second.info.fileType].push_back(e.first);
+		entriesByResourceType[e.second.info.resourceType].push_back(e.first);
 	}
-	return entriesByFileType;
+	return entriesByResourceType;
 }

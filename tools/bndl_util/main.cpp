@@ -50,20 +50,20 @@ int main(int argc, char** argv)
 			std::cout.fill('-');
 			std::cout << std::left << std::setw(70) << "NAME" << std::right << "FILE TYPE" << std::endl;
 			std::cout.fill(' ');
-			for (const auto &fileID : arch.ListFileIDs())
+			for (const auto &resourceID : arch.ListResourceIDs())
 			{
-				const auto debugInfo = arch.GetDebugInfo(fileID);
-				const auto fileType = *arch.GetFileType(fileID);
+				const auto debugInfo = arch.GetDebugInfo(resourceID);
+				const auto resourceType = *arch.GetResourceType(resourceID);
 				std::ostringstream name;
 				if (debugInfo)
 					name << debugInfo->name;
 				else
-					name << std::hex << fileID;
+					name << std::hex << resourceID;
 				std::ostringstream typeName;
 				if (debugInfo)
 					typeName << debugInfo->typeName;
 				else
-					typeName << std::hex << fileType;
+					typeName << std::hex << resourceType;
 				std::cout << std::left << std::setw(70) << name.str() << std::right << typeName.str() << std::endl;
 			}
 		}

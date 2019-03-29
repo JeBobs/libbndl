@@ -98,9 +98,10 @@ void Editor::PopulateTree()
 	//get root of the tree
 	m_model->clear();
 	QStandardItem *item = m_model->invisibleRootItem();
-	for(const auto &fileID : m_archive.ListFileIDs())
+	for (const auto &resourceID : m_archive.ListResourceIDs())
 	{
-		auto name = QString::number(fileID, 16);
+		const auto info = m_archive.GetDebugInfo(resourceID);
+		const auto &name = info ? QString::fromStdString(info->name) : QString::number(resourceID, 16);
 		QStandardItem *child = new QStandardItem(name);
 		child->setData(QVariant(name));
 		item->appendRow(child);
