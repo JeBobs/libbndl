@@ -147,12 +147,14 @@ namespace libbndl
 			std::unique_ptr<std::vector<uint8_t>> data;
 		};
 
-		struct EntryInfo
+		struct EntryDebugInfo
 		{
-			// In ResourceStringTable
 			std::string name;
 			std::string typeName;
+		};
 
+		struct EntryInfo
+		{
 			uint32_t checksum; // Stored in bundle as 64-bit (8-byte)
 
 			uint32_t dependenciesOffset;
@@ -204,8 +206,10 @@ namespace libbndl
 			return m_flags;
 		}
 
-		LIBBNDL_EXPORT std::optional<EntryInfo> GetInfo(const std::string &fileName) const;
-		LIBBNDL_EXPORT std::optional<EntryInfo> GetInfo(uint32_t fileID) const;
+		LIBBNDL_EXPORT std::optional<EntryDebugInfo> GetDebugInfo(const std::string &fileName) const;
+		LIBBNDL_EXPORT std::optional<EntryDebugInfo> GetDebugInfo(uint32_t fileID) const;
+		LIBBNDL_EXPORT std::optional<FileType> GetFileType(const std::string &fileName) const;
+		LIBBNDL_EXPORT std::optional<FileType> GetFileType(uint32_t fileID) const;
 		LIBBNDL_EXPORT std::optional<EntryData> GetData(const std::string &fileName) const;
 		LIBBNDL_EXPORT std::optional<EntryData> GetData(uint32_t fileID) const;
 		LIBBNDL_EXPORT std::unique_ptr<std::vector<uint8_t>> GetBinary(const std::string &fileName, uint32_t fileBlock) const;
@@ -222,6 +226,7 @@ namespace libbndl
 	private:
 		std::mutex					m_mutex;
 		std::map<uint32_t, Entry>	m_entries;
+		std::map<uint32_t, EntryDebugInfo> m_debugInfoEntries;
 		std::map<uint32_t, std::vector<Dependency>> m_dependencies; // not used in bnd2 due to lazy reading.
 
 		MagicVersion				m_magicVersion;

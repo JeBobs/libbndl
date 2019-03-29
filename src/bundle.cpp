@@ -151,11 +151,9 @@ bool Bundle::LoadBND2(binaryio::BinaryReader &reader)
 			for (const auto resource : doc.child("ResourceStringTable").children("Resource"))
 			{
 				const auto fileID = std::stoul(resource.attribute("id").value(), nullptr, 16);
-				const auto it = m_entries.find(fileID);
-				if (it == m_entries.end())
-					continue; // External import?
-				it->second.info.name = resource.attribute("name").value();
-				it->second.info.typeName = resource.attribute("type").value();
+				auto &debugInfo = m_debugInfoEntries[fileID];
+				debugInfo.name = resource.attribute("name").value();
+				debugInfo.typeName = resource.attribute("type").value();
 			}
 		}
 	}
@@ -309,11 +307,9 @@ bool Bundle::LoadBNDL(binaryio::BinaryReader &reader)
 		for (const auto resource : doc.child("ResourceStringTable").children("Resource"))
 		{
 			const auto fileID = std::stoul(resource.attribute("id").value(), nullptr, 16);
-			const auto it = m_entries.find(fileID);
-			if (it == m_entries.end())
-				continue; // External import?
-			it->second.info.name = resource.attribute("name").value();
-			it->second.info.typeName = resource.attribute("type").value();
+			auto &debugInfo = m_debugInfoEntries[fileID];
+			debugInfo.name = resource.attribute("name").value();
+			debugInfo.typeName = resource.attribute("type").value();
 		}
 	}
 
@@ -357,7 +353,7 @@ void Bundle::Save(const std::string& name)
 	{
 		pugi::xml_document doc;
 		auto root = doc.append_child("ResourceStringTable");
-		for (const auto &entry : m_entries)
+		for (const auto &entry : m_debugInfoEntries)
 		{
 			auto entryChild = root.append_child("Resource");
 
@@ -365,8 +361,8 @@ void Bundle::Save(const std::string& name)
 			idStream << std::hex << std::setw(8) << std::setfill('0') << entry.first;
 
 			entryChild.append_attribute("id").set_value(idStream.str().c_str());
-			entryChild.append_attribute("type").set_value(entry.second.info.typeName.c_str());
-			entryChild.append_attribute("name").set_value(entry.second.info.name.c_str());
+			entryChild.append_attribute("type").set_value(entry.second.typeName.c_str());
+			entryChild.append_attribute("name").set_value(entry.second.name.c_str());
 		}
 
 		std::stringstream out;
@@ -532,18 +528,32 @@ std::unique_ptr<std::vector<uint8_t>> Bundle::GetBinary(uint32_t fileID, uint32_
 	return std::move(uncompressedBuffer);
 }
 
-std::optional<Bundle::EntryInfo> Bundle::GetInfo(const std::string &fileName) const
+std::optional<Bundle::EntryDebugInfo> Bundle::GetDebugInfo(const std::string &fileName) const
 {
-	return GetInfo(HashFileName(fileName));
+	return GetDebugInfo(HashFileName(fileName));
 }
 
-std::optional<Bundle::EntryInfo> Bundle::GetInfo(uint32_t fileID) const
+std::optional<Bundle::EntryDebugInfo> Bundle::GetDebugInfo(uint32_t fileID) const
+{
+	const auto it = m_debugInfoEntries.find(fileID);
+	if (it == m_debugInfoEntries.end())
+		return {};
+	
+	return it->second;
+}
+
+std::optional<Bundle::FileType> Bundle::GetFileType(const std::string &fileName) const
+{
+	return GetFileType(HashFileName(fileName));
+}
+
+std::optional<Bundle::FileType> Bundle::GetFileType(uint32_t fileID) const
 {
 	const auto it = m_entries.find(fileID);
 	if (it == m_entries.end())
 		return {};
-	
-	return it->second.info;
+
+	return it->second.info.fileType;
 }
 
 bool Bundle::ReplaceEntry(const std::string &fileName, const EntryData &data)

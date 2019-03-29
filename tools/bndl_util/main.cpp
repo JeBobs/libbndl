@@ -52,13 +52,18 @@ int main(int argc, char** argv)
 			std::cout.fill(' ');
 			for (const auto &fileID : arch.ListFileIDs())
 			{
-				const auto info = *arch.GetInfo(fileID);
-				std::ostringstream name(info.name, std::ios::out | std::ios::ate);
-				if (name.tellp() == std::streampos(0))
+				const auto debugInfo = arch.GetDebugInfo(fileID);
+				const auto fileType = *arch.GetFileType(fileID);
+				std::ostringstream name;
+				if (debugInfo)
+					name << debugInfo->name;
+				else
 					name << std::hex << fileID;
-				std::ostringstream typeName(info.typeName, std::ios::out | std::ios::ate);
-				if (typeName.tellp() == std::streampos(0))
-					typeName << std::hex << info.fileType;
+				std::ostringstream typeName;
+				if (debugInfo)
+					typeName << debugInfo->typeName;
+				else
+					typeName << std::hex << fileType;
 				std::cout << std::left << std::setw(70) << name.str() << std::right << typeName.str() << std::endl;
 			}
 		}
