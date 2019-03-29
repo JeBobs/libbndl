@@ -490,7 +490,7 @@ std::optional<Bundle::EntryData> Bundle::GetData(uint32_t fileID) const
 		}
 	}
 
-	return data;
+	return std::move(data);
 }
 
 std::unique_ptr<std::vector<uint8_t>> Bundle::GetBinary(const std::string &fileName, uint32_t fileBlock) const
