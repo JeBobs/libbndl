@@ -7,30 +7,29 @@ dist: xenial
 compiler:
   - clang
   - gcc
-# Enable caching
-cache:
-  apt: true
-# Build matrix
+
+# Apt packages
 addons:
   apt:
     sources:
-        - sourceline: "ppa:ubuntu-toolchain-r/test"
-        - sourceline: "ppa:beineri/opt-qt-5.11.1-xenial"
+      - ubuntu-toolchain-r-test
+      - sourceline: "ppa:beineri/opt-qt-5.12.1-xenial"
     packages:
-        - g++-7
-        - gcc-7
-        - libgl1-mesa-dev
-        - qt511base
-        - qt511multimedia
+      - g++-8
+      - gcc-8
+      - libgl1-mesa-dev
+      - qt512base
+      - qt512multimedia
+
 # Install
 install:
-  - if [ "$TRAVIS_OS_NAME" = "linux" -a "$CXX" = "g++" ]; then export CXX="g++-7" CC="gcc-7"; fi
-  - source /opt/qt511/bin/qt511-env.sh # Needed with Beineri PPA
+  - if [ "$TRAVIS_OS_NAME" = "linux" -a "$CXX" = "g++" ]; then export CXX="g++-8" CC="gcc-8"; fi
+  - source /opt/qt512/bin/qt512-env.sh # Needed with Beineri PPA
 
 # Build steps
 script:
   - mkdir build
   - cd build
   - cmake .. -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=install
-  - make
+  - make -j2
   - make install

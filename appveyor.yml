@@ -5,9 +5,9 @@ image: Visual Studio 2017
 environment:
   matrix:
   - ARCHITECTURE: "x86"
-    QT5_DIR: C:\Qt\5.11\msvc2015 # There is no msvc2017
+    QT5_DIR: C:\Qt\5.12.1\msvc2017
   - ARCHITECTURE: "x64"
-    QT5_DIR: C:\Qt\5.11\msvc2017_64
+    QT5_DIR: C:\Qt\5.12.1\msvc2017_64
 
 matrix:
   fast_finish: true
