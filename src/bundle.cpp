@@ -89,6 +89,7 @@ bool Bundle::LoadBND2(binaryio::BinaryReader &reader)
 
 
 	m_entries.clear();
+	m_debugInfoEntries.clear();
 
 	reader.Seek(idBlockOffset);
 	for (auto i = 0U; i < m_numEntries; i++)
@@ -571,6 +572,7 @@ bool Bundle::ReplaceResource(uint32_t resourceID, const EntryData &data)
 
 	Entry &e = it->second;
 
+	e.info.checksum = 0;
 	e.info.dependenciesOffset = 0;
 	e.info.numberOfDependencies = 0;
 
@@ -594,7 +596,10 @@ bool Bundle::ReplaceResource(uint32_t resourceID, const EntryData &data)
 		{
 			binaryio::BinaryWriter writer;
 			for (const auto &dependency : data.dependencies)
+			{
 				WriteDependency(writer, dependency);
+				e.info.checksum &= dependency.resourceID;
+			}
 			const auto depSize = writer.GetSize();
 			auto depStream = writer.GetStream();
 
