@@ -300,7 +300,11 @@ bool Bundle::LoadBNDL(binaryio::BinaryReader &reader)
 	auto rstReader = binaryio::BinaryReader(std::move(rstFile));
 
 	const auto strLen = rstReader.Read<uint32_t>();
-	const auto rstXML = rstReader.ReadString(strLen);
+	auto rstXML = rstReader.ReadString(strLen);
+
+    // Cover Criterion's broken XML writer.
+    if (rstXML.rfind("</ResourceStringTable>", 0) == 0)
+        rstXML.erase(1, 1);
 
 	pugi::xml_document doc;
 	if (doc.load_string(rstXML.c_str(), pugi::parse_minimal))
