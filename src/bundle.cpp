@@ -305,6 +305,9 @@ bool Bundle::LoadBNDL(binaryio::BinaryReader &reader)
     // Cover Criterion's broken XML writer.
     if (rstXML.rfind("</ResourceStringTable>", 0) == 0)
         rstXML.erase(1, 1);
+    const auto pos = rstXML.find("</ResourceStringTable>\n\t");
+    if (pos != std::string::npos)
+        rstXML.erase(pos, 26);
 
 	pugi::xml_document doc;
 	if (doc.load_string(rstXML.c_str(), pugi::parse_minimal))
