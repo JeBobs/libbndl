@@ -167,9 +167,9 @@ bool Bundle::LoadBNDL(binaryio::BinaryReader &reader)
 	reader.SetBigEndian(true); // Never released on PC.
 
 	// A lot of this is unknown.
-	m_revisionNumber = reader.Read<uint32_t>(); // probably
-	if (m_revisionNumber != 5)
-		return false;
+	/*m_revisionNumber = */reader.Read<uint32_t>(); // ???
+	/*if (m_revisionNumber != 5)
+		return false;*/
 	m_numEntries = reader.Read<uint32_t>();
 	const auto block2Offset = reader.Read<uint32_t>();
 	reader.Seek(0x38, std::ios::cur);
@@ -248,8 +248,8 @@ bool Bundle::LoadBNDL(binaryio::BinaryReader &reader)
 				continue;
 			}
 
-			if (j > 0 && readOffset == 0)
-				readOffset = block2Offset; // idk
+			if (j == 2)
+				readOffset += block2Offset;
 			dataReader.Seek(readOffset); // Read offset
 
 			const auto readBuffer = dataReader.Read<uint8_t *>(readSize);
