@@ -131,6 +131,7 @@ bool Bundle::LoadBND2(binaryio::BinaryReader &reader)
 
 			const auto readBuffer = dataReader.Read<uint8_t *>(readSize);
 			dataInfo.data = std::make_unique<std::vector<uint8_t>>(readBuffer, readBuffer + readSize);
+			delete[] readBuffer;
 		}
 
 		e.info.dependenciesOffset = reader.Read<uint32_t>();
@@ -254,6 +255,7 @@ bool Bundle::LoadBNDL(binaryio::BinaryReader &reader)
 
 			const auto readBuffer = dataReader.Read<uint8_t *>(readSize);
 			dataInfo.data = std::make_unique<std::vector<uint8_t>>(readBuffer, readBuffer + readSize);
+			delete[] readBuffer;
 		}
 
 		reader.Seek(0x14, std::ios::cur); // Unknown mem stuff
