@@ -1,5 +1,4 @@
 #include <libbndl/bundle.hpp>
-#include "lock.hpp"
 #include <binaryio/binaryreader.hpp>
 #include <binaryio/binarywriter.hpp>
 #include <fstream>
@@ -39,8 +38,6 @@ bool Bundle::Load(const std::string &name)
 	// Check if archive exists
 	if (stream.fail())
 		return false;
-
-	Lock mutexLock(m_mutex);
 
 	const auto fileSize = stream.tellg();
 	stream.seekg(0, std::ios::beg);
@@ -330,8 +327,6 @@ void Bundle::Save(const std::string& name)
 {
 	assert(m_magicVersion == BND2);
 
-	Lock mutexLock(m_mutex);
-
 	auto writer = binaryio::BinaryWriter();
 
 	writer.Write("bnd2", 4);
@@ -576,8 +571,6 @@ bool Bundle::ReplaceResource(uint32_t resourceID, const EntryData &data)
 	const auto it = m_entries.find(resourceID);
 	if (it == m_entries.end() || data.dependencies.size() > std::numeric_limits<uint16_t>::max())
 		return false;
-
-	Lock mutexLock(m_mutex);
 
 	Entry &e = it->second;
 

@@ -224,7 +224,6 @@ namespace libbndl
 		LIBBNDL_EXPORT std::map<ResourceType, std::vector<uint32_t>> ListResourceIDsByType() const;
 
 	private:
-		std::mutex					m_mutex;
 		std::map<uint32_t, Entry>	m_entries;
 		std::map<uint32_t, EntryDebugInfo> m_debugInfoEntries;
 		std::map<uint32_t, std::vector<Dependency>> m_dependencies; // not used in bnd2 due to lazy reading.
