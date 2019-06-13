@@ -302,12 +302,12 @@ bool Bundle::LoadBNDL(binaryio::BinaryReader &reader)
 	const auto strLen = rstReader.Read<uint32_t>();
 	auto rstXML = rstReader.ReadString(strLen);
 
-    // Cover Criterion's broken XML writer.
-    if (rstXML.rfind("</ResourceStringTable>", 0) == 0)
-        rstXML.erase(1, 1);
-    const auto pos = rstXML.find("</ResourceStringTable>\n\t");
-    if (pos != std::string::npos)
-        rstXML.erase(pos, 26);
+	// Cover Criterion's broken XML writer.
+	if (rstXML.rfind("</ResourceStringTable>", 0) == 0)
+		rstXML.erase(1, 1);
+	const auto pos = rstXML.find("</ResourceStringTable>\n\t");
+	if (pos != std::string::npos)
+		rstXML.erase(pos, 23);
 
 	pugi::xml_document doc;
 	if (doc.load_string(rstXML.c_str(), pugi::parse_minimal))
