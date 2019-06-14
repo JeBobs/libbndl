@@ -183,6 +183,9 @@ namespace libbndl
 		};
 
 
+		LIBBNDL_EXPORT Bundle() = default;
+		LIBBNDL_EXPORT Bundle(MagicVersion magicVersion, uint32_t revisionNumber, Platform platform, Flags flags); // For creating new bundles
+
 		LIBBNDL_EXPORT bool Load(const std::string &name);
 		LIBBNDL_EXPORT bool Save(const std::string &name);
 
@@ -215,7 +218,10 @@ namespace libbndl
 		LIBBNDL_EXPORT std::unique_ptr<std::vector<uint8_t>> GetBinary(const std::string &resourceName, uint32_t fileBlock) const;
 		LIBBNDL_EXPORT std::unique_ptr<std::vector<uint8_t>> GetBinary(uint32_t resourceID, uint32_t fileBlock) const;
 
-		// Add Resource coming soon
+		LIBBNDL_EXPORT bool AddResource(const std::string &resourceName, const EntryData &data, ResourceType resourceType);
+		LIBBNDL_EXPORT bool AddResource(uint32_t resourceID, const EntryData &data, ResourceType resourceType);
+		LIBBNDL_EXPORT bool AddDebugInfo(const std::string &resourceName, const std::string &name, const std::string &type);
+		LIBBNDL_EXPORT bool AddDebugInfo(uint32_t resourceID, const std::string &name, const std::string &type);
 
 		LIBBNDL_EXPORT bool ReplaceResource(const std::string &resourceName, const EntryData &data);
 		LIBBNDL_EXPORT bool ReplaceResource(uint32_t resourceID, const EntryData &data);

@@ -29,6 +29,14 @@ inline unsigned long BitScanReverse(unsigned long input)
 	return result;
 }
 
+Bundle::Bundle(MagicVersion magicVersion, uint32_t revisionNumber, Platform platform, Flags flags)
+{
+	m_magicVersion = magicVersion;
+	m_revisionNumber = revisionNumber;
+	m_platform = platform;
+	m_flags = flags;
+}
+
 bool Bundle::Load(const std::string &name)
 {
 	std::ifstream stream;
@@ -828,6 +836,41 @@ std::optional<Bundle::ResourceType> Bundle::GetResourceType(uint32_t resourceID)
 		return {};
 
 	return it->second.info.resourceType;
+}
+
+bool Bundle::AddResource(const std::string &resourceName, const EntryData &data, Bundle::ResourceType resourceType)
+{
+	return AddResource(HashResourceName(resourceName), data, resourceType);
+}
+
+bool Bundle::AddResource(uint32_t resourceID, const EntryData &data, Bundle::ResourceType resourceType)
+{
+	const auto it = m_entries.find(resourceID);
+	if (it != m_entries.end() || data.dependencies.size() > std::numeric_limits<uint16_t>::max())
+		return false;
+
+	Entry &e = m_entries[resourceID];
+	e.info.resourceType = resourceType;
+
+	return ReplaceResource(resourceID, data);
+}
+
+bool Bundle::AddDebugInfo(const std::string &resourceName, const std::string &name, const std::string &type)
+{
+	return AddDebugInfo(HashResourceName(resourceName), name, type);
+}
+
+bool Bundle::AddDebugInfo(uint32_t resourceID, const std::string &name, const std::string &type)
+{
+	const auto it = m_debugInfoEntries.find(resourceID);
+	if (it != m_debugInfoEntries.end())
+		return false;
+
+	EntryDebugInfo &debugInfo = m_debugInfoEntries[resourceID];
+	debugInfo.name = name;
+	debugInfo.typeName = type;
+
+	return true;
 }
 
 bool Bundle::ReplaceResource(const std::string &resourceName, const EntryData &data)
