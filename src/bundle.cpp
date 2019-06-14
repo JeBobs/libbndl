@@ -72,13 +72,13 @@ bool Bundle::LoadBND2(binaryio::BinaryReader &reader)
 		return false;
 
 	const auto rstOffset = reader.Read<uint32_t>();
-
-	m_numEntries = reader.Read<uint32_t>();
+	const auto numEntries = reader.Read<uint32_t>();
 
 	const auto idBlockOffset = reader.Read<uint32_t>();
-	m_fileBlockOffsets[0] = reader.Read<uint32_t>();
-	m_fileBlockOffsets[1] = reader.Read<uint32_t>();
-	m_fileBlockOffsets[2] = reader.Read<uint32_t>();
+	uint32_t fileBlockOffsets[3];
+	fileBlockOffsets[0] = reader.Read<uint32_t>();
+	fileBlockOffsets[1] = reader.Read<uint32_t>();
+	fileBlockOffsets[2] = reader.Read<uint32_t>();
 
 	m_flags = reader.Read<Flags>();
 
@@ -89,7 +89,7 @@ bool Bundle::LoadBND2(binaryio::BinaryReader &reader)
 	m_debugInfoEntries.clear();
 
 	reader.Seek(idBlockOffset);
-	for (auto i = 0U; i < m_numEntries; i++)
+	for (auto i = 0U; i < numEntries; i++)
 	{
 		// These are stored in bundle as 64-bit (8-byte), but are really 32-bit.
 		auto resourceID = static_cast<uint32_t>(reader.Read<uint64_t>());
@@ -115,7 +115,7 @@ bool Bundle::LoadBND2(binaryio::BinaryReader &reader)
 		auto dataReader = reader.Copy();
 		for (auto j = 0; j < 3; j++)
 		{
-			dataReader.Seek(m_fileBlockOffsets[j] + reader.Read<uint32_t>()); // Read offset
+			dataReader.Seek(fileBlockOffsets[j] + reader.Read<uint32_t>()); // Read offset
 
 			auto &dataInfo = e.fileBlockData[j];
 
@@ -164,32 +164,46 @@ bool Bundle::LoadBNDL(binaryio::BinaryReader &reader)
 {
 	reader.SetBigEndian(true); // Never released on PC.
 
-	// A lot of this is unknown.
 	/*m_revisionNumber = */reader.Read<uint32_t>(); // ???
 	/*if (m_revisionNumber != 5)
 		return false;*/
-	m_numEntries = reader.Read<uint32_t>();
-	const auto block2Offset = reader.Read<uint32_t>();
-	reader.Seek(0x38, std::ios::cur);
+
+	const auto numEntries = reader.Read<uint32_t>();
+
+	uint32_t dataBlockSizes[5];
+	for (auto i = 0; i < 5; i++)
+	{
+		dataBlockSizes[i] = reader.Read<uint32_t>();
+		reader.Skip<uint32_t>(); // Alignment
+	}
+
+	reader.Seek(0x14, std::ios::cur); // Unknown memory stuff
+
 	const auto idListOffset = reader.Read<uint32_t>();
 	const auto idTableOffset = reader.Read<uint32_t>();
 	reader.Skip<uint32_t>(); // dependency block
-	reader.Seek(4, std::ios::cur);
+	reader.Skip<uint32_t>(); // start of data block
+
 	m_platform = Xbox360; // Xbox only for now.
-	reader.Skip<uint32_t>();//m_platform = reader.Read<Platform>(); // maybe
+	reader.Verify<uint32_t>(2);//m_platform = reader.Read<Platform>(); // maybe
+
 	const auto compressed = reader.Read<uint32_t>();
 	if (compressed)
 		m_flags = Compressed; // TODO
 	else
 		m_flags = static_cast<Flags>(0);
+
 	reader.Skip<uint32_t>(); // unknown purpose: sometimes repeats m_numEntries
 	const auto uncompInfoOffset = reader.Read<uint32_t>();
+	reader.Skip<uint32_t>(); // main memory alignment
+	reader.Skip<uint32_t>(); // graphics memory alignment
+
 
 	m_entries.clear();
 
 	reader.Seek(idListOffset);
 	std::vector<uint32_t> resourceIDs;
-	for (auto i = 0U; i < m_numEntries; i++)
+	for (auto i = 0U; i < numEntries; i++)
 		resourceIDs.push_back(static_cast<uint32_t>(reader.Read<uint64_t>()));
 
 	reader.Seek(idTableOffset);
@@ -205,9 +219,9 @@ bool Bundle::LoadBNDL(binaryio::BinaryReader &reader)
 		{
 			e.fileBlockData[0].compressedSize = reader.Read<uint32_t>();
 			reader.Skip<uint32_t>(); // Alignment value, should be 1
-			e.fileBlockData[1].compressedSize = reader.Read<uint32_t>();
+			reader.Skip<uint32_t>(); // other blocks. Maybe used but I'm ignoring it.
 			reader.Skip<uint32_t>(); // Alignment value, should be 1
-			e.fileBlockData[2].compressedSize = reader.Read<uint32_t>();
+			e.fileBlockData[1].compressedSize = reader.Read<uint32_t>();
 			reader.Skip<uint32_t>(); // Alignment value, should be 1
 			reader.Skip<uint32_t>(); // other blocks. Maybe used but I'm ignoring it.
 			reader.Skip<uint32_t>(); // Alignment value, should be 1
@@ -218,10 +232,10 @@ bool Bundle::LoadBNDL(binaryio::BinaryReader &reader)
 		{
 			e.fileBlockData[0].uncompressedSize = reader.Read<uint32_t>();
 			e.fileBlockData[0].uncompressedAlignment = reader.Read<uint32_t>();
+			reader.Skip<uint32_t>(); // other blocks. Maybe used but I'm ignoring it.
+			reader.Skip<uint32_t>(); // Alignment value
 			e.fileBlockData[1].uncompressedSize = reader.Read<uint32_t>();
 			e.fileBlockData[1].uncompressedAlignment = reader.Read<uint32_t>();
-			e.fileBlockData[2].uncompressedSize = reader.Read<uint32_t>();
-			e.fileBlockData[2].uncompressedAlignment = reader.Read<uint32_t>();
 			reader.Skip<uint32_t>(); // other blocks. Maybe used but I'm ignoring it.
 			reader.Skip<uint32_t>(); // Alignment value
 			reader.Skip<uint32_t>(); // other blocks. Maybe used but I'm ignoring it.
@@ -229,15 +243,21 @@ bool Bundle::LoadBNDL(binaryio::BinaryReader &reader)
 		}
 
 		auto dataReader = reader.Copy();
+		auto dataBlockStartOffset = 0;
 		for (auto j = 0; j < 5; j++)
 		{
-			auto readOffset = reader.Read<uint32_t>();
+			if (j > 0)
+				dataBlockStartOffset += dataBlockSizes[j - 1];
+
+			const auto readOffset = reader.Read<uint32_t>() + dataBlockStartOffset;
 			reader.Skip<uint32_t>(); // 1
 
-			if (j > 2)
-				continue; // Not supporting blocks 4 and 5 right now.
+			if (j != 0 && j != 2)
+				continue; // Not supporting blocks 2, 4 and 5 right now.
 
-			auto &dataInfo = e.fileBlockData[j];
+			auto mappedBlock = j;
+			if (j == 2) mappedBlock = 1;
+			auto &dataInfo = e.fileBlockData[mappedBlock];
 
 			const auto readSize = compressed ? dataInfo.compressedSize : dataInfo.uncompressedSize;
 			if (readSize == 0)
@@ -246,8 +266,6 @@ bool Bundle::LoadBNDL(binaryio::BinaryReader &reader)
 				continue;
 			}
 
-			if (j == 2)
-				readOffset += block2Offset;
 			dataReader.Seek(readOffset); // Read offset
 
 			const auto readBuffer = dataReader.Read<uint8_t *>(readSize);
@@ -267,10 +285,10 @@ bool Bundle::LoadBNDL(binaryio::BinaryReader &reader)
 
 			e.fileBlockData[0].uncompressedSize = reader.Read<uint32_t>();
 			e.fileBlockData[0].uncompressedAlignment = reader.Read<uint32_t>();
+			reader.Skip<uint32_t>(); // other blocks. Maybe used but I'm ignoring it.
+			reader.Skip<uint32_t>(); // Alignment value
 			e.fileBlockData[1].uncompressedSize = reader.Read<uint32_t>();
 			e.fileBlockData[1].uncompressedAlignment = reader.Read<uint32_t>();
-			e.fileBlockData[2].uncompressedSize = reader.Read<uint32_t>();
-			e.fileBlockData[2].uncompressedAlignment = reader.Read<uint32_t>();
 			reader.Skip<uint32_t>(); // other blocks. Maybe used but I'm ignoring it.
 			reader.Skip<uint32_t>(); // Alignment value
 			reader.Skip<uint32_t>(); // other blocks. Maybe used but I'm ignoring it.
@@ -287,7 +305,7 @@ bool Bundle::LoadBNDL(binaryio::BinaryReader &reader)
 
 		reader.Seek(depOffset);
 		e.info.numberOfDependencies = static_cast<uint16_t>(reader.Read<uint32_t>());
-		reader.Skip<uint32_t>();
+		reader.Verify<uint32_t>(0);
 		for (auto i = 0U; i < e.info.numberOfDependencies; i++)
 			m_dependencies[resourceID].emplace_back(ReadDependency(reader));
 	}
@@ -320,6 +338,8 @@ bool Bundle::LoadBNDL(binaryio::BinaryReader &reader)
 		}
 	}
 
+	m_entries.erase(0xC039284A);
+
 	return true;
 }
 
@@ -336,7 +356,7 @@ void Bundle::Save(const std::string& name)
 	auto rstPointerPos = writer.GetOffset();
 	writer.Seek(4, std::ios::cur); // write later
 
-	writer.Write(m_numEntries);
+	writer.Write<uint32_t>(m_entries.size());
 
 	auto idBlockPointerPos = writer.GetOffset();
 	writer.Seek(4, std::ios::cur); // write later
@@ -381,9 +401,9 @@ void Bundle::Save(const std::string& name)
 
 	// ID BLOCK
 	writer.VisitAndWrite<uint32_t>(idBlockPointerPos, writer.GetOffset());
-	auto entryDataPointerPos = std::vector<std::array<off_t, 3>>(m_numEntries);
+	auto entryDataPointerPos = std::vector<std::array<off_t, 3>>(m_entries.size());
 	auto entryIter = m_entries.begin();
-	for (auto i = 0U; i < m_numEntries; i++)
+	for (auto i = 0U; i < m_entries.size(); i++)
 	{
 		writer.Write<uint64_t>(entryIter->first);
 
@@ -417,7 +437,7 @@ void Bundle::Save(const std::string& name)
 		writer.VisitAndWrite<uint32_t>(fileBlockPointerPos[i], blockStart);
 
 		entryIter = m_entries.begin();
-		for (auto j = 0U; j < m_numEntries; j++)
+		for (auto j = 0U; j < m_entries.size(); j++)
 		{
 			const auto &e = entryIter->second;
 
@@ -428,7 +448,7 @@ void Bundle::Save(const std::string& name)
 			{
 				writer.VisitAndWrite<uint32_t>(entryDataPointerPos[j][i], writer.GetOffset() - blockStart);
 				writer.Write(dataInfo.data->data(), readSize);
-				writer.Align((i != 0 && j != m_numEntries - 1) ? 0x80 : 16);
+				writer.Align((i != 0 && j != m_entries.size() - 1) ? 0x80 : 16);
 			}
 
 			entryIter = std::next(entryIter);
@@ -530,7 +550,7 @@ std::unique_ptr<std::vector<uint8_t>> Bundle::GetBinary(uint32_t resourceID, uin
 		std::memcpy(uncompressedBuffer->data(), buffer->data(), uncompressedSize);
 	}
 
-	return std::move(uncompressedBuffer);
+	return uncompressedBuffer;
 }
 
 std::optional<Bundle::EntryDebugInfo> Bundle::GetDebugInfo(const std::string &resourceName) const
@@ -620,6 +640,8 @@ bool Bundle::ReplaceResource(uint32_t resourceID, const EntryData &data)
 			inBuffer = std::make_unique<std::vector<uint8_t>>(inDataInfo->begin(), inDataInfo->end());
 		}
 
+		const auto uncompressedSize = static_cast<uint32_t>(inBuffer->size());
+
 		if (m_flags & Compressed)
 		{
 			const auto compBufferSize = compressBound(static_cast<uLong>(inBuffer->size()));
@@ -642,7 +664,7 @@ bool Bundle::ReplaceResource(uint32_t resourceID, const EntryData &data)
 			outDataInfo.compressedSize = 0;
 		}
 
-		outDataInfo.uncompressedSize = static_cast<uint32_t>(inBuffer->size());
+		outDataInfo.uncompressedSize = uncompressedSize;
 		outDataInfo.data = std::move(outBuffer);
 	}
 

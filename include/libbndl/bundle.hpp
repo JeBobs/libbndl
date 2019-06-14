@@ -172,7 +172,6 @@ namespace libbndl
 		{
 			EntryInfo info;
 			EntryFileBlockData fileBlockData[3];
-			std::vector<Dependency> dependencies;
 		};
 
 
@@ -231,8 +230,6 @@ namespace libbndl
 		MagicVersion				m_magicVersion;
 		uint32_t					m_revisionNumber;
 		Platform					m_platform;
-		uint32_t					m_numEntries;
-		uint32_t					m_fileBlockOffsets[3];
 		Flags						m_flags;
 
 		bool LoadBND2(binaryio::BinaryReader &reader);
