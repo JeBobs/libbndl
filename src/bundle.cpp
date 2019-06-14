@@ -343,12 +343,36 @@ bool Bundle::LoadBNDL(binaryio::BinaryReader &reader)
 	return true;
 }
 
-void Bundle::Save(const std::string& name)
+bool Bundle::Save(const std::string &name)
 {
-	assert(m_magicVersion == BND2);
-
 	auto writer = binaryio::BinaryWriter();
 
+	switch (m_magicVersion)
+	{
+	case BNDL:
+		if (!SaveBNDL(writer))
+			return false;
+		break;
+
+	case BND2:
+		if (!SaveBND2(writer))
+			return false;
+		break;
+
+	default:
+		return false;
+	}
+
+	std::ofstream f(name, std::ios::out | std::ios::binary);
+	f << writer.GetStream().rdbuf();
+	f.close();
+
+	return true;
+}
+
+
+bool Bundle::SaveBND2(binaryio::BinaryWriter &writer)
+{
 	writer.Write("bnd2", 4);
 	writer.Write<uint32_t>(2); // Bundle version
 	writer.Write(PC); // Only PC writing supported for now.
@@ -458,9 +482,231 @@ void Bundle::Save(const std::string& name)
 			writer.Align(0x80);
 	}
 
-	std::ofstream f(name, std::ios::out | std::ios::binary);
-	f << writer.GetStream().rdbuf();
-	f.close();
+	return true;
+}
+
+bool Bundle::SaveBNDL(binaryio::BinaryWriter &writer)
+{
+	writer.SetBigEndian(true);
+
+	writer.Write("bndl", 4);
+	writer.Write<uint32_t>(5); // TODO: sometimes this is 3 or 4?
+
+	const bool writeDebugData = !m_debugInfoEntries.empty() && (m_flags & Compressed) == 0; // TODO: is the compressed check accurate?
+	uint32_t entryCount = m_entries.size();
+	if (writeDebugData)
+		entryCount++;
+
+	writer.Write<uint32_t>(entryCount);
+
+	off_t dataBlockDescriptorsPos[2];
+	for (auto i = 0; i < 5; i++)
+	{
+		if (i == 0)
+			dataBlockDescriptorsPos[0] = writer.GetOffset();
+		else if (i == 2)
+			dataBlockDescriptorsPos[1] = writer.GetOffset();
+		writer.Write<uint32_t>(0); // size
+		writer.Write<uint32_t>(1); // alignment
+	}
+
+	for (auto i = 0; i < 5; i++)
+	{
+		writer.Write<uint32_t>(0); // memory addresses - unsupported for now.
+	}
+
+	auto idListPointerPos = writer.GetOffset();
+	writer.Seek(4, std::ios::cur);
+	auto idTablePointerPos = writer.GetOffset();
+	writer.Seek(4, std::ios::cur);
+	auto importBlockPointerPos = writer.GetOffset();
+	writer.Seek(4, std::ios::cur);
+	auto dataBlockPointerPos = writer.GetOffset();
+	writer.Seek(4, std::ios::cur);
+
+	writer.Write<uint32_t>(2); // Platform?
+
+	writer.Write<uint32_t>(m_flags & Compressed);
+	writer.Write<uint32_t>((m_flags & Compressed) ? entryCount : 0);
+	auto uncompInfoBlockPointerPos = writer.GetOffset();
+	writer.Write<uint32_t>(0); // will write later, but only if needed
+
+	writer.Write<uint32_t>(0); // Main memory alignment. Setting this to 0 so we don't need to deal with memory addresses.
+	writer.Write<uint32_t>(0); // Graphics memory alignment.
+
+	// ID LIST
+	writer.VisitAndWrite<uint32_t>(idListPointerPos, writer.GetOffset());
+	for (const auto &entry : m_entries)
+	{
+		writer.Write<uint64_t>(entry.first);
+	}
+	if (writeDebugData)
+		writer.Write<uint64_t>(0xC039284A);
+
+	// Prepare ResourceStringTable
+	if (writeDebugData)
+	{
+		pugi::xml_document doc;
+		auto root = doc.append_child("ResourceStringTable");
+		for (const auto &entry : m_debugInfoEntries)
+		{
+			auto entryChild = root.append_child("Resource");
+
+			std::stringstream idStream;
+			idStream << std::hex << std::setw(8) << std::setfill('0') << entry.first;
+
+			entryChild.append_attribute("id").set_value(idStream.str().c_str());
+			entryChild.append_attribute("type").set_value(entry.second.typeName.c_str());
+			entryChild.append_attribute("name").set_value(entry.second.name.c_str());
+		}
+
+		std::stringstream out;
+		doc.save(out, "\t", pugi::format_indent | pugi::format_no_declaration, pugi::encoding_utf8);
+		const auto outStr = std::regex_replace(out.str(), std::regex(" />\n"), "/>\n");
+
+		auto debugDataWriter = binaryio::BinaryWriter();
+		debugDataWriter.Write<uint32_t>(outStr.size());
+		debugDataWriter.Write(outStr);
+
+		const auto data = debugDataWriter.GetStream().str();
+
+		auto &e = m_entries[0xFFFFFFFF]; // HACK
+		e.info.resourceType = TextFile;
+		e.fileBlockData[0].data = std::make_unique<std::vector<uint8_t>>(data.begin(), data.end());
+		e.fileBlockData[0].uncompressedSize = data.size();
+		e.fileBlockData[0].uncompressedAlignment = 4;
+	}
+
+	// ID TABLE
+	writer.VisitAndWrite<uint32_t>(idTablePointerPos, writer.GetOffset());
+
+	struct FilePointerPosHelper
+	{
+		off_t importPointerPos;
+		off_t dataBlockPointerPos[2];
+	};
+	std::map<uint32_t, FilePointerPosHelper> filePointerPosMap;
+	for (const auto &entry : m_entries)
+	{
+		writer.Write<uint32_t>(0); // Ignore
+
+		auto &posHelper = filePointerPosMap[entry.first];
+
+		posHelper.importPointerPos = writer.GetOffset();
+		writer.Write<uint32_t>(0);
+
+		writer.Write(entry.second.info.resourceType);
+
+		for (auto i = 0; i < 5; i++)
+		{
+			auto mappedBlock = -1;
+			if (i == 0) mappedBlock = 0;
+			else if (i == 2) mappedBlock = 1;
+
+			if (mappedBlock == -1)
+			{
+				writer.Write<uint32_t>(0); // size
+				writer.Write<uint32_t>(1); // alignment
+			}
+			else
+			{
+				const auto &blockData = entry.second.fileBlockData[mappedBlock];
+				const auto size = (m_flags & Compressed) ? blockData.compressedSize : blockData.uncompressedSize;
+				writer.Write<uint32_t>(size);
+				writer.Write<uint32_t>((size == 0) ? 1 : blockData.uncompressedAlignment);
+			}
+		}
+
+		for (auto i = 0; i < 5; i++)
+		{
+			if (i == 0)
+				posHelper.dataBlockPointerPos[0] = writer.GetOffset();
+			else if (i == 2)
+				posHelper.dataBlockPointerPos[1] = writer.GetOffset();
+
+			writer.Write<uint32_t>(0);
+			writer.Write<uint32_t>(1); // constant
+		}
+
+		// Memory stuff - not supported for now
+		for (auto i = 0; i < 5; i++)
+			writer.Write<uint32_t>(0);
+	}
+
+	// UNCOMPRESSED SIZE INFO
+	if (m_flags & Compressed)
+	{
+		writer.VisitAndWrite<uint32_t>(uncompInfoBlockPointerPos, writer.GetOffset());
+		for (const auto &entry : m_entries)
+		{
+			for (auto i = 0; i < 5; i++)
+			{
+				auto mappedBlock = -1;
+				if (i == 0) mappedBlock = 0;
+				else if (i == 2) mappedBlock = 1;
+
+				if (mappedBlock == -1)
+				{
+					writer.Write<uint32_t>(0); // size
+					writer.Write<uint32_t>(1); // alignment
+				}
+				else
+				{
+					const auto &blockData = entry.second.fileBlockData[mappedBlock];
+					writer.Write<uint32_t>(blockData.uncompressedSize);
+					writer.Write<uint32_t>((blockData.uncompressedSize == 0) ? 1 : blockData.uncompressedAlignment);
+				}
+			}
+		}
+	}
+
+	// IMPORTS
+	writer.VisitAndWrite<uint32_t>(importBlockPointerPos, writer.GetOffset());
+	for (const auto &entry : m_entries)
+	{
+		const auto &imports = m_dependencies[entry.first];
+		if (imports.empty())
+			continue;
+
+		writer.VisitAndWrite<uint32_t>(filePointerPosMap.at(entry.first).importPointerPos, writer.GetOffset());
+
+		writer.Write<uint32_t>(imports.size());
+		writer.Write<uint32_t>(0); // unknown, always seems to be 0
+		for (const auto &import : imports)
+		{
+			writer.Write<uint64_t>(import.resourceID);
+			writer.Write<uint32_t>(import.internalOffset);
+			writer.Align(8);
+		}
+	}
+
+	// DATA
+	writer.VisitAndWrite<uint32_t>(dataBlockPointerPos, writer.GetOffset());
+	off_t blockStartOffset = 0;
+	for (auto i = 0; i < 2; i++)
+	{
+		for (const auto &entry : m_entries)
+		{
+			const auto &e = entry.second;
+
+			const auto &dataInfo = e.fileBlockData[i];
+			const auto readSize = (m_flags & Compressed) ? dataInfo.compressedSize : dataInfo.uncompressedSize;
+
+			if (readSize > 0)
+			{
+				writer.VisitAndWrite<uint32_t>(filePointerPosMap.at(entry.first).dataBlockPointerPos[i], writer.GetOffset() - blockStartOffset);
+				writer.Write(dataInfo.data->data(), readSize);
+			}
+		}
+
+		writer.VisitAndWrite<uint32_t>(dataBlockDescriptorsPos[i], writer.GetOffset() - blockStartOffset);
+		writer.VisitAndWrite<uint32_t>(dataBlockDescriptorsPos[i], (i == 1) ? 4096 : 1024); // TODO: This changes and I don't know the pattern.
+		blockStartOffset = writer.GetOffset();
+	}
+
+	m_entries.erase(0xFFFFFFFF);
+
+	return true;
 }
 
 uint32_t Bundle::HashResourceName(std::string resourceName) const
@@ -492,7 +738,10 @@ std::optional<Bundle::EntryData> Bundle::GetData(uint32_t resourceID) const
 
 	EntryData data;
 	for (auto i = 0; i < 3; i++)
+	{
 		data.fileBlockData[i] = GetBinary(resourceID, i);
+		data.alignments[i] = it->second.fileBlockData[i].uncompressedAlignment;
+	}
 
 	const auto numDependencies = it->second.info.numberOfDependencies;
 	if (numDependencies > 0)
@@ -614,7 +863,7 @@ bool Bundle::ReplaceResource(uint32_t resourceID, const EntryData &data)
 		std::unique_ptr<std::vector<uint8_t>> inBuffer;
 		std::unique_ptr<std::vector<uint8_t>> outBuffer;
 
-		if (i == 0 && data.dependencies.size() > 0)
+		if (m_magicVersion == BND2 && i == 0 && !data.dependencies.empty())
 		{
 			binaryio::BinaryWriter writer;
 			for (const auto &dependency : data.dependencies)
@@ -666,6 +915,7 @@ bool Bundle::ReplaceResource(uint32_t resourceID, const EntryData &data)
 
 		outDataInfo.uncompressedSize = uncompressedSize;
 		outDataInfo.data = std::move(outBuffer);
+		outDataInfo.uncompressedAlignment = data.alignments[i];
 	}
 
 	return true;

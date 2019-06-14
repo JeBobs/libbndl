@@ -178,12 +178,13 @@ namespace libbndl
 		struct EntryData
 		{
 			std::unique_ptr<std::vector<uint8_t>> fileBlockData[3];
+			uint32_t alignments[3];
 			std::vector<Dependency> dependencies;
 		};
 
 
 		LIBBNDL_EXPORT bool Load(const std::string &name);
-		LIBBNDL_EXPORT void Save(const std::string &name);
+		LIBBNDL_EXPORT bool Save(const std::string &name);
 
 		LIBBNDL_EXPORT MagicVersion GetMagicVersion() const
 		{
@@ -234,6 +235,8 @@ namespace libbndl
 
 		bool LoadBND2(binaryio::BinaryReader &reader);
 		bool LoadBNDL(binaryio::BinaryReader &reader);
+		bool SaveBND2(binaryio::BinaryWriter &writer);
+		bool SaveBNDL(binaryio::BinaryWriter &writer);
 		uint32_t HashResourceName(std::string resourceName) const;
 
 		static Dependency ReadDependency(binaryio::BinaryReader &reader);
