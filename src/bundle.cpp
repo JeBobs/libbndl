@@ -570,7 +570,7 @@ bool Bundle::SaveBNDL(binaryio::BinaryWriter &writer)
 
 		std::stringstream out;
 		doc.save(out, "\t", pugi::format_indent | pugi::format_no_declaration, pugi::encoding_utf8);
-		const auto outStr = std::regex_replace(out.str(), std::regex(" />\n"), "/>\n");
+		const auto outStr = out.str();
 
 		auto debugDataWriter = binaryio::BinaryWriter();
 		debugDataWriter.Write<uint32_t>(outStr.size());
