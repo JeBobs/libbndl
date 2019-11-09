@@ -707,8 +707,9 @@ bool Bundle::SaveBNDL(binaryio::BinaryWriter &writer)
 			}
 		}
 
-		writer.VisitAndWrite<uint32_t>(dataBlockDescriptorsPos[i], writer.GetOffset() - blockStartOffset);
-		writer.VisitAndWrite<uint32_t>(dataBlockDescriptorsPos[i], (i == 1) ? 4096 : 1024); // TODO: This changes and I don't know the pattern.
+		const auto size = writer.GetOffset() - blockStartOffset;
+		writer.VisitAndWrite<uint32_t>(dataBlockDescriptorsPos[i], size);
+		writer.VisitAndWrite<uint32_t>(dataBlockDescriptorsPos[i], (size == 0) ? 1 : ((i == 1) ? 4096 : 1024)); // TODO: This changes and I don't know the pattern.
 		blockStartOffset = writer.GetOffset();
 	}
 
