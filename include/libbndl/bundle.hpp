@@ -43,15 +43,23 @@ namespace libbndl
 		{
 			Raster = 0x00,
 			Material = 0x01,
+			ResourceMesh = 0x02, // found in Black
 			TextFile = 0x03,
+			DrawIndexParams = 0x04, // found in Black
+			IndexBuffer = 0x05, // found in Black
+			MeshState = 0x06, // found in Black
+			VertexBuffer = 0x09, // found in Black
 			VertexDesc = 0x0A,
 			MaterialCRC32 = 0x0B, // 2006
 			Renderable = 0x0C,
 			MaterialTechnique = 0x0D, // last-gen console
 			TextureState = 0x0E,
 			MaterialState = 0x0F,
+			DepthStencilState = 0x10, // found in Black
+			RasterizerState = 0x11, // found in Black
 			ShaderProgramBuffer = 0x12,
 			ShaderParameter = 0x14,
+			RenderableAssembly = 0x15, // found in Black
 			Debug = 0x16,
 			KdTree = 0x17,
 			VoiceHierarchy = 0x18, // removed
@@ -60,7 +68,7 @@ namespace libbndl
 			AttribSysSchema = 0x1B,
 			AttribSysVault = 0x1C,
 			EntryList = 0x1D, // unregistered
-			AptDataHeaderType = 0x1E,
+			AptDataHeader = 0x1E,
 			GuiPopup = 0x1F,
 			Font = 0x21,
 			LuaCode = 0x22,
@@ -80,6 +88,7 @@ namespace libbndl
 			WorldPainter2D = 0x30,
 			PFXHookBundle = 0x31,
 			Shader = 0x32, // ShaderTechnique on console
+			RawFile = 0x40, // found in Black
 			ICETakeDictionary = 0x41,
 			VideoData = 0x42,
 			PolygonSoupList = 0x43,
@@ -87,6 +96,7 @@ namespace libbndl
 			CommsToolList = 0x46,
 			BinaryFile = 0x50, // Used as a base class for other types, but this type ID was found in one of the builds.
 			AnimationCollection = 0x51,
+			
 			Registry = 0xA000,
 			GenericRwacWaveContent = 0xA020,
 			GinsuWaveContent = 0xA021,
@@ -98,7 +108,10 @@ namespace libbndl
 			VoiceHierarchyCollection = 0xA027, // unregistered
 			GenericRwacReverbIRContent = 0xA028,
 			SnapshotData = 0xA029,
+			
 			ZoneList = 0xB000,
+
+			// Burnout Paradise
 			LoopModel = 0x10000,
 			AISections = 0x10001,
 			TrafficData = 0x10002,
@@ -135,7 +148,14 @@ namespace libbndl
 			VehicleAnimation = 0x10023,
 			BodypartRemapping = 0x10024,
 			LUAList = 0x10025,
-			LUAScript = 0x10026
+			LUAScript = 0x10026,
+
+			// Black
+			BkSoundWeapon = 0x11000,
+			BkSoundGunsu = 0x11001,
+			BkSoundBulletImpact = 0x11002,
+			BkSoundBulletImpactList = 0x11003,
+			BkSoundBulletImpactStream = 0x11004
 		};
 
 
