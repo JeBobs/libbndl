@@ -11,7 +11,7 @@ compiler:
 addons:
   apt:
     sources:
-      - sourceline: "ppa:beineri/opt-qt-5.12.3-xenial"
+      - sourceline: "ppa:beineri/opt-qt-5.12.3-bionic"
     packages:
       - g++-8
       - gcc-8
