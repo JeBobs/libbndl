@@ -1,6 +1,6 @@
 version: '0.0.0.{build}'
 
-image: Visual Studio 2017
+image: Visual Studio 2019
 
 environment:
   matrix:
@@ -14,13 +14,13 @@ matrix:
 
 install:
 - call "%QT5_DIR%\bin\qtenv2.bat"
-- call "C:\\Program Files (x86)\\Microsoft Visual Studio\\2017\\Community\\VC\\Auxiliary\\Build\\vcvarsall.bat" %ARCHITECTURE%
+- call "C:\\Program Files (x86)\\Microsoft Visual Studio\\2019\\Community\\VC\\Auxiliary\\Build\\vcvarsall.bat" %ARCHITECTURE%
 - cd /D "%APPVEYOR_BUILD_FOLDER%"
 - git submodule update --init --recursive
 
 before_build:
-- cmake -H. -Bbuild-debug -G Ninja -DCMAKE_PREFIX_PATH="%QT5_DIR%" -DCMAKE_BUILD_TYPE=Debug -DCMAKE_INSTALL_PREFIX=install-debug -DCMAKE_MAKE_PROGRAM="C:\\Program Files (x86)\\Microsoft Visual Studio\\2017\\Community\\Common7\\IDE\\CommonExtensions\\Microsoft\\CMake\\Ninja\\ninja.exe"
-- cmake -H. -Bbuild-release -G Ninja -DCMAKE_PREFIX_PATH="%QT5_DIR%" -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=install-release -DCMAKE_MAKE_PROGRAM="C:\\Program Files (x86)\\Microsoft Visual Studio\\2017\\Community\\Common7\\IDE\\CommonExtensions\\Microsoft\\CMake\\Ninja\\ninja.exe"
+- cmake -H. -Bbuild-debug -G Ninja -DCMAKE_PREFIX_PATH="%QT5_DIR%" -DCMAKE_BUILD_TYPE=Debug -DCMAKE_INSTALL_PREFIX=install-debug -DCMAKE_MAKE_PROGRAM="C:\\Program Files (x86)\\Microsoft Visual Studio\\2019\\Community\\Common7\\IDE\\CommonExtensions\\Microsoft\\CMake\\Ninja\\ninja.exe"
+- cmake -H. -Bbuild-release -G Ninja -DCMAKE_PREFIX_PATH="%QT5_DIR%" -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=install-release -DCMAKE_MAKE_PROGRAM="C:\\Program Files (x86)\\Microsoft Visual Studio\\2019\\Community\\Common7\\IDE\\CommonExtensions\\Microsoft\\CMake\\Ninja\\ninja.exe"
 
 
 build_script:
