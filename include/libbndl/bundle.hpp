@@ -263,6 +263,7 @@ namespace libbndl
 		bool LoadBNDL(binaryio::BinaryReader &reader);
 		bool SaveBND2(binaryio::BinaryWriter &writer);
 		bool SaveBNDL(binaryio::BinaryWriter &writer);
+		int8_t MapBNDLBlockToBND2(uint8_t block) const;
 		uint32_t HashResourceName(std::string resourceName) const;
 
 		static Dependency ReadDependency(binaryio::BinaryReader &reader);
