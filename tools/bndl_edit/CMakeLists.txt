@@ -2,8 +2,7 @@ set(CMAKE_AUTOMOC ON)
 set(CMAKE_INCLUDE_CURRENT_DIR ON)
 
 # Find Qt Library
-find_package(Qt5Widgets REQUIRED)
-find_package(Qt5Multimedia REQUIRED)
+find_package(Qt5 COMPONENTS Widgets Multimedia REQUIRED)
 
 add_executable(bndl_edit WIN32 main.cpp editor.cpp editor.hpp)
 
