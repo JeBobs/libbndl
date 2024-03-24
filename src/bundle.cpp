@@ -172,9 +172,9 @@ bool Bundle::LoadBNDL(binaryio::BinaryReader &reader)
 {
 	reader.SetBigEndian(true); // Never released on PC.
 
-	/*m_revisionNumber = */reader.Read<uint32_t>(); // ???
-	/*if (m_revisionNumber != 5)
-		return false;*/
+	m_revisionNumber = reader.Read<uint32_t>();
+	if (m_revisionNumber < 3 || m_revisionNumber > 5)
+		return false;
 
 	const auto numEntries = reader.Read<uint32_t>();
 
@@ -208,6 +208,8 @@ bool Bundle::LoadBNDL(binaryio::BinaryReader &reader)
 
 
 	m_entries.clear();
+	m_debugInfoEntries.clear();
+	m_dependencies.clear();
 
 	reader.Seek(idListOffset);
 	std::vector<uint32_t> resourceIDs;
@@ -321,6 +323,8 @@ bool Bundle::LoadBNDL(binaryio::BinaryReader &reader)
 	auto rstFile = GetBinary(0xC039284A, 0);
 	if (rstFile == nullptr)
 		return true;
+
+	m_flags = static_cast<Flags>(m_flags | HasResourceStringTable);
 
 	auto rstReader = binaryio::BinaryReader(std::move(rstFile));
 
