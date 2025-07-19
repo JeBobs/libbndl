@@ -1,20 +1,39 @@
 set(CMAKE_AUTOMOC ON)
 set(CMAKE_INCLUDE_CURRENT_DIR ON)
 
-# Find Qt Library
-find_package(Qt5 COMPONENTS Widgets Multimedia REQUIRED)
+find_package(Qt6 COMPONENTS Widgets REQUIRED)
 
-add_executable(bndl_edit WIN32 main.cpp editor.cpp editor.hpp)
+add_executable(bndl_edit main.cpp editor.cpp editor.hpp)
 
-target_link_libraries(bndl_edit libbndl Qt5::Widgets Qt5::Multimedia)
+target_link_libraries(bndl_edit libbndl Qt6::Widgets)
 target_include_directories(bndl_edit PRIVATE)
 
 set_property(TARGET bndl_edit PROPERTY CXX_STANDARD 17)
 
-add_custom_command(TARGET bndl_edit POST_BUILD
-				   COMMAND ${CMAKE_COMMAND} -E copy_if_different $<TARGET_FILE:libbndl>
-																 $<TARGET_FILE:Qt5::Core>
-																 $<TARGET_FILE:Qt5::Gui>
-																 $<TARGET_FILE:Qt5::Widgets>
-																 $<TARGET_FILE:Qt5::Multimedia>
-				   $<TARGET_FILE_DIR:bndl_edit>)
+option(LIBBNDL_INSTALL_UI "Install UI tools" OFF)
+if(LIBBNDL_INSTALL_UI)
+    install(TARGETS bndl_edit RUNTIME DESTINATION bin
+                              LIBRARY DESTINATION lib
+                              ARCHIVE DESTINATION lib)
+
+    if(CMAKE_CXX_LINKER_SUPPORTS_PDB)
+        install(FILES $<TARGET_PDB_FILE:bndl_edit> DESTINATION bin OPTIONAL)
+    endif()
+
+    if(BUILD_SHARED_LIBS)
+        install(FILES $<TARGET_RUNTIME_DLLS:libbndl> DESTINATION bin)
+    endif()
+
+    install(TARGETS bndl_edit RUNTIME_DEPENDENCIES
+                              PRE_INCLUDE_REGEXES "qt6"
+                              PRE_EXCLUDE_REGEXES ".*"
+                              DIRECTORIES $<TARGET_FILE_DIR:Qt6::Core>
+                              FRAMEWORK DESTINATION Frameworks)
+
+    if(WIN32)
+        install(FILES $<TARGET_FILE:Qt6::QWindowsIntegrationPlugin>
+                DESTINATION bin/platforms)
+        install(FILES $<TARGET_FILE:Qt6::QModernWindowsStylePlugin>
+                DESTINATION bin/styles)
+    endif()
+endif()

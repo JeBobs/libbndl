@@ -2,3 +2,5 @@
 .vscode
 build
 gcc_build
+out
+CMakeUserPresets.json

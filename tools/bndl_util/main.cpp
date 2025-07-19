@@ -15,18 +15,18 @@ int main(int argc, char** argv)
 		("s,search", "Search for an entry", cxxopts::value<std::string>())
 		("l,list", "List all entries");
 
-	options.parse(argc, argv);
-	if (options.count("file") == 0)
+	auto parsedOptions = options.parse(argc, argv);
+	if (parsedOptions.count("file") == 0)
 	{
 		std::cout << "Please specify an input file." << std::endl << options.help() << std::endl;
 		return EXIT_FAILURE;
 	}
 
-	bool extract = options["pack"].as<bool>();
-	bool pack = options["pack"].as<bool>();
-	bool list = options["list"].as<bool>();
-	std::string file = options["file"].as<std::string>();
-	std::string search = options["search"].as<std::string>();
+	bool extract = parsedOptions["pack"].as<bool>();
+	bool pack = parsedOptions["pack"].as<bool>();
+	bool list = parsedOptions["list"].as<bool>();
+	std::string file = parsedOptions["file"].as<std::string>();
+	std::string search = parsedOptions["search"].as<std::string>();
 	bool bsearch = search.size() > 0;
 	
 	if ((pack + extract + list + bsearch) != 1)

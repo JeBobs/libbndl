@@ -3,6 +3,7 @@
 #include <binaryio/binarywriter.hpp>
 #include <fstream>
 #include <cassert>
+#include <cstring>
 #include <zlib.h>
 #include <pugixml.hpp>
 #include <regex>

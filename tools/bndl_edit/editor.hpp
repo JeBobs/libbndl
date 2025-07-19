@@ -6,8 +6,6 @@
 #include <QStackedLayout>
 #include <QLabel>
 #include <QTextEdit>
-#include <QOpenGLWidget>
-#include <QMediaPlayer>
 #include <libbndl/bundle.hpp>
 
 using namespace libbndl;
@@ -63,11 +61,8 @@ private:
 private:
 	void PopulateTree();
 private:
-	QMediaPlayer* m_mediaplayer;
-	QVideoWidget* m_videowidget;
 	QTextEdit* m_texteditor;
 	QLabel* m_imageviewer;
-	QOpenGLWidget* m_modelviewer;
 	QStackedLayout* m_content;
 	QStandardItemModel* m_model;
 	QString m_path;

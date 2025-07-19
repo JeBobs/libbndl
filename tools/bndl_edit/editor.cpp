@@ -20,10 +20,8 @@ Editor::Editor(QWidget* parent)
 	m_content = new QStackedLayout;
 	m_texteditor = new QTextEdit;
 	m_imageviewer = new QLabel;
-	m_modelviewer = new QOpenGLWidget;
 	m_content->addWidget(m_texteditor);
 	m_content->addWidget(m_imageviewer);
-	m_content->addWidget(m_modelviewer);
 	content->setLayout(m_content);
 
 	//TREEVIEW
@@ -35,7 +33,7 @@ Editor::Editor(QWidget* parent)
 	splitter->addWidget(content);
 
 	QVBoxLayout *layout = new QVBoxLayout;
-	layout->setMargin(5);
+	layout->setContentsMargins(5, 5, 5, 5);
 	layout->addWidget(splitter);
 	widget->setLayout(layout);
 
@@ -125,7 +123,7 @@ void Editor::createActions()
 	//SAVE
 	createAction(saveAct, QKeySequence::Save, "&Save", "Save opened archive", &Editor::save);
 	//SAVE AS
-	createAction(saveAsAct, QKeySequence::SaveAs, "Save&As", "Save opened archive", &Editor::saveAs);
+	createAction(saveAsAct, QKeySequence::SaveAs, "Save &As...", "Save opened archive", &Editor::saveAs);
 	//QUIT
 	createAction(quitAct, QKeySequence::Quit, "&Quit", "Quit program", &Editor::quit);
 	//UNDO

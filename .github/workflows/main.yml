@@ -33,7 +33,7 @@ jobs:
       - name: Install Qt
         uses: jurplel/install-qt-action@v4
         with:
-          version: 5.15.*
+          version: 6.*
 
       - name: Build
         shell: bash
@@ -41,7 +41,7 @@ jobs:
           if [ "$RUNNER_OS" == "Windows" ]; then
             export CMAKE_GENERATOR=Ninja
           fi
-          cmake -S. -Bbuild -DCMAKE_BUILD_TYPE=${{ matrix.build_type }} -DCMAKE_INSTALL_PREFIX=install -DLIBBNDL_BUILD_UI=ON
+          cmake -S. -Bbuild -DCMAKE_BUILD_TYPE=${{ matrix.build_type }} -DCMAKE_INSTALL_PREFIX=install -DLIBBNDL_BUILD_TOOLS=ON -DLIBBNDL_BUILD_UI=ON -DLIBBNDL_INSTALL_UI=ON
           cmake --build build
           cmake --install build
 
