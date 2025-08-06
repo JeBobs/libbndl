@@ -70,5 +70,12 @@ install(TARGETS libbndl RUNTIME DESTINATION bin
 if(CMAKE_CXX_LINKER_SUPPORTS_PDB AND BUILD_SHARED_LIBS)
     install(FILES $<TARGET_PDB_FILE:libbndl> DESTINATION bin OPTIONAL)
 endif()
+
+if (ZLIB_BUILD_SHARED)
+    install(TARGETS zlib RUNTIME DESTINATION bin
+                         LIBRARY DESTINATION lib
+                         ARCHIVE DESTINATION lib)
+endif()
+
 install(FILES ${PUBLIC_HEADERS} ${CMAKE_CURRENT_BINARY_DIR}/libbndl_export.h DESTINATION include/libbndl)
 install(FILES ${LIBBNDL_ROOT}/LICENSE.md DESTINATION share/libbndl RENAME copyright)
